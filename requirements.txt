@@ -6,4 +6,5 @@ PyPDF2
 python-docx
 pytesseract
 Pillow
+googletrans==4.0.0rc1
 
