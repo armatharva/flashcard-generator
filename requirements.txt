@@ -56,6 +56,3 @@ fpdf==1.7.2
 googletrans==4.0.0-rc1
 sentence-transformers==2.5.1
 pytesseract==0.3.10
-
-
-
