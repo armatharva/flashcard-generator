@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Optional
 import re
 import json
+from PIL import Image
 
 # Set page config must be the first Streamlit command
 st.set_page_config(
@@ -1207,6 +1208,39 @@ def render_print_button():
     """
     components.html(print_js, height=50)
 
+def generate_flashcards_from_ocr(text: str, max_cards: int = 5) -> List[Dict[str, str]]:
+    """Generate flashcards from OCR text using simple Q&A splitting."""
+    lines = [line.strip() for line in text.split("\n") if len(line.strip()) > 0]
+    flashcards = []
+    
+    for line in lines:
+        # Basic Q&A split: using colon or dash as delimiters
+        if ":" in line:
+            parts = line.split(":", 1)
+            question, answer = parts[0].strip(), parts[1].strip()
+            flashcards.append({
+                "question": question,
+                "answer": answer,
+                "explanation": answer,  # Use answer as explanation for OCR cards
+                "difficulty": "medium",
+                "type": "definition"
+            })
+        elif "-" in line:
+            parts = line.split("-", 1)
+            question, answer = parts[0].strip(), parts[1].strip()
+            flashcards.append({
+                "question": question,
+                "answer": answer,
+                "explanation": answer,  # Use answer as explanation for OCR cards
+                "difficulty": "medium",
+                "type": "definition"
+            })
+        
+        if len(flashcards) >= max_cards:
+            break
+    
+    return flashcards
+
 def main():
     initialize_session_state()
     
@@ -1222,6 +1256,104 @@ def main():
         "All content, including flashcards and chatbot responses, will be displayed in your selected language.",
         st.session_state.selected_lang_code
     ))
+
+    # Create tabs for different input methods
+    input_tab1, input_tab2 = st.tabs([
+        translate_text("📝 Text Input", st.session_state.selected_lang_code),
+        translate_text("🖼️ Image Upload", st.session_state.selected_lang_code)
+    ])
+
+    with input_tab1:
+        # Text input area
+        text_input = st.text_area(
+            translate_text("Enter or paste your notes here:", st.session_state.selected_lang_code),
+            height=200,
+            key="text_input"
+        )
+        
+        # File uploader for text files
+        uploaded_file = st.file_uploader(
+            translate_text("Or upload a text file (PDF, DOCX, TXT):", st.session_state.selected_lang_code),
+            type=["pdf", "docx", "txt"],
+            key="file_uploader"
+        )
+
+        if uploaded_file is not None:
+            text_input = extract_text_from_file(uploaded_file)
+            if text_input:
+                st.text_area(
+                    translate_text("Extracted text:", st.session_state.selected_lang_code),
+                    value=text_input,
+                    height=200,
+                    key="extracted_text"
+                )
+
+    with input_tab2:
+        # Image upload
+        uploaded_image = st.file_uploader(
+            translate_text("Upload an image containing text (PNG, JPG, JPEG):", st.session_state.selected_lang_code),
+            type=["png", "jpg", "jpeg"],
+            key="image_uploader"
+        )
+
+        if uploaded_image is not None:
+            # Display the uploaded image
+            image = Image.open(uploaded_image)
+            st.image(image, caption=translate_text("Uploaded Image", st.session_state.selected_lang_code), use_column_width=True)
+
+            # Process image with OCR
+            if st.button(translate_text("Extract Text from Image", st.session_state.selected_lang_code)):
+                with st.spinner(translate_text("Processing image with OCR...", st.session_state.selected_lang_code)):
+                    extracted_text = extract_text_from_image(image)
+                    if extracted_text:
+                        st.success(translate_text("Text extracted successfully!", st.session_state.selected_lang_code))
+                        text_input = extracted_text
+                        st.text_area(
+                            translate_text("Extracted text:", st.session_state.selected_lang_code),
+                            value=extracted_text,
+                            height=200,
+                            key="ocr_text"
+                        )
+                        
+                        # Add option to choose flashcard generation method for OCR text
+                        generation_method = st.radio(
+                            translate_text("Choose flashcard generation method:", st.session_state.selected_lang_code),
+                            [
+                                translate_text("Quick (split by Q&A format)", st.session_state.selected_lang_code),
+                                translate_text("AI-Powered (advanced generation)", st.session_state.selected_lang_code)
+                            ],
+                            key="ocr_generation_method"
+                        )
+                        
+                        if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
+                            with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
+                                if generation_method == translate_text("Quick (split by Q&A format)", st.session_state.selected_lang_code):
+                                    flashcards = generate_flashcards_from_ocr(extracted_text)
+                                else:
+                                    flashcards = generate_flashcards(extracted_text)
+                                
+                                if flashcards:
+                                    st.success(translate_text(f"Generated {len(flashcards)} flashcards!", st.session_state.selected_lang_code))
+                                    save_flashcards_to_history(flashcards)
+                                    render_flip_cards(flashcards, st.session_state.selected_lang_code)
+                                    render_print_button()
+                                else:
+                                    st.error(translate_text("Failed to generate flashcards. Please try again or use a different image.", st.session_state.selected_lang_code))
+                    else:
+                        st.error(translate_text("Failed to extract text from image. Please try another image.", st.session_state.selected_lang_code))
+
+    # Generate flashcards button (appears if there's text input from text tab)
+    if text_input and not uploaded_image:  # Only show for text input tab
+        if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
+            with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
+                flashcards = generate_flashcards(text_input)
+                if flashcards:
+                    st.success(translate_text("Flashcards generated successfully!", st.session_state.selected_lang_code))
+                    save_flashcards_to_history(flashcards)
+                    render_flip_cards(flashcards, st.session_state.selected_lang_code)
+                    render_print_button()
+                else:
+                    st.error(translate_text("Failed to generate flashcards. Please try again.", st.session_state.selected_lang_code))
 
     # Sidebar with enhanced chatbot
     with st.sidebar:
