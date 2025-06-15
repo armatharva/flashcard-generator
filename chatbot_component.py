@@ -20,20 +20,20 @@ def render_chatbot(faq_dict: Dict[str, str]):
         with st.chat_message(message["role"]):
             st.write(message["content"])
     
-    # Chat input
-    if prompt := st.chat_input("Type your question here..."):
+    # Use only st.chat_input (remove any st.button usage)
+    if user_input := st.chat_input("Type your question here..."):
         # Add user message to chat history
-        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
         
         # Get chatbot response
-        response = chatbot.get_response(prompt)
+        response = chatbot.get_response(user_input)
         
         # Add assistant response to chat history
         st.session_state.chat_history.append({"role": "assistant", "content": response})
         
         # Display the new messages
         with st.chat_message("user"):
-            st.write(prompt)
+            st.write(user_input)
         with st.chat_message("assistant"):
             st.write(response)
     

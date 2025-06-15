@@ -1,28 +1,209 @@
 import streamlit as st
-from transformers import pipeline
-from utils import extract_text_from_file, extract_text_from_image
-from chatbot import Chatbot
-from translations import LANGUAGES, get_translation
-from googletrans import Translator
-import csv
-import io
-import random
-from fpdf import FPDF
-import streamlit.components.v1 as components
-from datetime import datetime, timedelta
-import torch
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict, Any, Optional
-import re
-import json
+import pytesseract
 from PIL import Image
+import io
+import base64
+import os
+from gtts import gTTS
+from typing import Dict, List, Optional
+import random
+from chatbot import Chatbot
+from translations import translate_text, LANGUAGES
+import tempfile
+import time
+import openai
+from pydub import AudioSegment
 
-# Set page config must be the first Streamlit command
+# Map our language codes to gTTS language codes and voice options
+LANG_MAP = {
+    # Major Languages with voice options
+    "en": {"code": "en", "voices": ["en-US", "en-GB", "en-AU", "en-IN"]},  # English variants
+    "es": {"code": "es", "voices": ["es-ES", "es-MX", "es-AR", "es-CO"]},  # Spanish variants
+    "zh": {"code": "zh-cn", "voices": ["zh-CN", "zh-TW", "zh-HK"]},  # Chinese variants
+    "hi": {"code": "hi", "voices": ["hi-IN"]},  # Hindi
+    "fr": {"code": "fr", "voices": ["fr-FR", "fr-CA", "fr-BE", "fr-CH"]},  # French variants
+    "de": {"code": "de", "voices": ["de-DE", "de-AT", "de-CH"]},  # German variants
+    "ja": {"code": "ja", "voices": ["ja-JP"]},  # Japanese
+    "ko": {"code": "ko", "voices": ["ko-KR"]},  # Korean
+    "ru": {"code": "ru", "voices": ["ru-RU"]},  # Russian
+    "pt": {"code": "pt", "voices": ["pt-BR", "pt-PT"]},  # Portuguese variants
+    "ar": {"code": "ar", "voices": ["ar-SA", "ar-EG", "ar-MA"]},  # Arabic variants
+    "it": {"code": "it", "voices": ["it-IT", "it-CH"]},  # Italian variants
+    
+    # South Asian with voice options
+    "bn": {"code": "bn", "voices": ["bn-IN", "bn-BD"]},  # Bengali
+    "te": {"code": "te", "voices": ["te-IN"]},  # Telugu
+    "ta": {"code": "ta", "voices": ["ta-IN", "ta-SG", "ta-MY"]},  # Tamil
+    "mr": {"code": "mr", "voices": ["mr-IN"]},  # Marathi
+    "gu": {"code": "gu", "voices": ["gu-IN"]},  # Gujarati
+    "kn": {"code": "kn", "voices": ["kn-IN"]},  # Kannada
+    "ml": {"code": "ml", "voices": ["ml-IN"]},  # Malayalam
+    "pa": {"code": "pa", "voices": ["pa-IN", "pa-PK"]},  # Punjabi
+    "ur": {"code": "ur", "voices": ["ur-IN", "ur-PK"]},  # Urdu
+    "ne": {"code": "ne", "voices": ["ne-NP"]},  # Nepali
+    "si": {"code": "si", "voices": ["si-LK"]},  # Sinhala
+    
+    # European with voice options
+    "nl": {"code": "nl", "voices": ["nl-NL", "nl-BE"]},  # Dutch variants
+    "pl": {"code": "pl", "voices": ["pl-PL"]},  # Polish
+    "sv": {"code": "sv", "voices": ["sv-SE", "sv-FI"]},  # Swedish variants
+    "da": {"code": "da", "voices": ["da-DK"]},  # Danish
+    "fi": {"code": "fi", "voices": ["fi-FI"]},  # Finnish
+    "no": {"code": "no", "voices": ["nb-NO", "nn-NO"]},  # Norwegian variants
+    "el": {"code": "el", "voices": ["el-GR", "el-CY"]},  # Greek variants
+    "hu": {"code": "hu", "voices": ["hu-HU"]},  # Hungarian
+    "ro": {"code": "ro", "voices": ["ro-RO"]},  # Romanian
+    "sk": {"code": "sk", "voices": ["sk-SK"]},  # Slovak
+    "uk": {"code": "uk", "voices": ["uk-UA"]},  # Ukrainian
+    "bg": {"code": "bg", "voices": ["bg-BG"]},  # Bulgarian
+    "hr": {"code": "hr", "voices": ["hr-HR"]},  # Croatian
+    "sr": {"code": "sr", "voices": ["sr-RS", "sr-ME"]},  # Serbian variants
+    "ca": {"code": "ca", "voices": ["ca-ES", "ca-FR", "ca-AD"]},  # Catalan variants
+    "eu": {"code": "eu", "voices": ["eu-ES"]},  # Basque
+    "gl": {"code": "gl", "voices": ["gl-ES"]},  # Galician
+    "is": {"code": "is", "voices": ["is-IS"]},  # Icelandic
+    
+    # Middle Eastern with voice options
+    "fa": {"code": "fa", "voices": ["fa-IR", "fa-AF"]},  # Persian variants
+    "tr": {"code": "tr", "voices": ["tr-TR", "tr-CY"]},  # Turkish variants
+    "he": {"code": "he", "voices": ["he-IL"]},  # Hebrew
+    "ku": {"code": "ku", "voices": ["ku-IQ", "ku-TR"]},  # Kurdish variants
+    "ps": {"code": "ps", "voices": ["ps-AF"]},  # Pashto
+    
+    # Southeast Asian with voice options
+    "id": {"code": "id", "voices": ["id-ID"]},  # Indonesian
+    "ms": {"code": "ms", "voices": ["ms-MY", "ms-BN"]},  # Malay variants
+    "th": {"code": "th", "voices": ["th-TH"]},  # Thai
+    "vi": {"code": "vi", "voices": ["vi-VN"]},  # Vietnamese
+    "km": {"code": "km", "voices": ["km-KH"]},  # Khmer
+    "lo": {"code": "lo", "voices": ["lo-LA"]},  # Lao
+    "my": {"code": "my", "voices": ["my-MM"]},  # Burmese
+    
+    # African with voice options
+    "af": {"code": "af", "voices": ["af-ZA"]},  # Afrikaans
+    "sw": {"code": "sw", "voices": ["sw-KE", "sw-TZ"]},  # Swahili variants
+    "yo": {"code": "yo", "voices": ["yo-NG"]},  # Yoruba
+    "zu": {"code": "zu", "voices": ["zu-ZA"]},  # Zulu
+    "xh": {"code": "xh", "voices": ["xh-ZA"]},  # Xhosa
+    "st": {"code": "st", "voices": ["st-ZA", "st-LS"]},  # Sesotho variants
+    "sn": {"code": "sn", "voices": ["sn-ZW"]},  # Shona
+    "ny": {"code": "ny", "voices": ["ny-MW"]},  # Chichewa
+    "rw": {"code": "rw", "voices": ["rw-RW"]},  # Kinyarwanda
+    "so": {"code": "so", "voices": ["so-SO", "so-DJ", "so-ET", "so-KE"]},  # Somali variants
+    "am": {"code": "am", "voices": ["am-ET"]},  # Amharic
+    "ha": {"code": "ha", "voices": ["ha-NG", "ha-GH"]},  # Hausa variants
+    "ig": {"code": "ig", "voices": ["ig-NG"]},  # Igbo
+    "mg": {"code": "mg", "voices": ["mg-MG"]},  # Malagasy
+    
+    # Other Languages with voice options
+    "ka": {"code": "ka", "voices": ["ka-GE"]},  # Georgian
+    "hy": {"code": "hy", "voices": ["hy-AM"]},  # Armenian
+    "uz": {"code": "uz", "voices": ["uz-UZ"]},  # Uzbek
+    "kk": {"code": "kk", "voices": ["kk-KZ"]},  # Kazakh
+    "ky": {"code": "ky", "voices": ["ky-KG"]},  # Kyrgyz
+    "tg": {"code": "tg", "voices": ["tg-TJ"]},  # Tajik
+    "tk": {"code": "tk", "voices": ["tk-TM"]},  # Turkmen
+    "mn": {"code": "mn", "voices": ["mn-MN"]},  # Mongolian
+    "bo": {"code": "bo", "voices": ["bo-CN"]},  # Tibetan
+    "ti": {"code": "ti", "voices": ["ti-ET", "ti-ER"]},  # Tigrinya variants
+    "om": {"code": "om", "voices": ["om-ET", "om-KE"]},  # Oromo variants
+    "cy": {"code": "cy", "voices": ["cy-GB"]},  # Welsh
+    "ga": {"code": "ga", "voices": ["ga-IE"]},  # Irish
+    "mt": {"code": "mt", "voices": ["mt-MT"]},  # Maltese
+    
+    # Additional Languages
+    "lv": {"code": "lv", "voices": ["lv-LV"]},  # Latvian
+    "lt": {"code": "lt", "voices": ["lt-LT"]},  # Lithuanian
+    "et": {"code": "et", "voices": ["et-EE"]},  # Estonian
+    "sl": {"code": "sl", "voices": ["sl-SI"]},  # Slovenian
+    "mk": {"code": "mk", "voices": ["mk-MK"]},  # Macedonian
+    "sq": {"code": "sq", "voices": ["sq-AL", "sq-MK", "sq-XK"]},  # Albanian variants
+    "bs": {"code": "bs", "voices": ["bs-BA"]},  # Bosnian
+    "cs": {"code": "cs", "voices": ["cs-CZ"]},  # Czech
+    "be": {"code": "be", "voices": ["be-BY"]},  # Belarusian
+    "az": {"code": "az", "voices": ["az-AZ"]},  # Azerbaijani
+    "uz": {"code": "uz", "voices": ["uz-UZ"]},  # Uzbek
+    "tt": {"code": "tt", "voices": ["tt-RU"]},  # Tatar
+    "ba": {"code": "ba", "voices": ["ba-RU"]},  # Bashkir
+    "cv": {"code": "cv", "voices": ["cv-RU"]},  # Chuvash
+    "ce": {"code": "ce", "voices": ["ce-RU"]},  # Chechen
+    "os": {"code": "os", "voices": ["os-RU"]},  # Ossetian
+    "kbd": {"code": "kbd", "voices": ["kbd-RU"]},  # Kabardian
+    "ady": {"code": "ady", "voices": ["ady-RU"]},  # Adyghe
+    "inh": {"code": "inh", "voices": ["inh-RU"]},  # Ingush
+    "lbe": {"code": "lbe", "voices": ["lbe-RU"]},  # Lak
+    "dar": {"code": "dar", "voices": ["dar-RU"]},  # Dargwa
+    "lez": {"code": "lez", "voices": ["lez-RU"]},  # Lezgi
+    "tab": {"code": "tab", "voices": ["tab-RU"]},  # Tabasaran
+    "rut": {"code": "rut", "voices": ["rut-RU"]},  # Rutul
+    "agx": {"code": "agx", "voices": ["agx-RU"]},  # Aghul
+    "tkr": {"code": "tkr", "voices": ["tkr-RU"]},  # Tsakhur
+    "udi": {"code": "udi", "voices": ["udi-RU"]},  # Udi
+    "krc": {"code": "krc", "voices": ["krc-RU"]},  # Karachay-Balkar
+    "nog": {"code": "nog", "voices": ["nog-RU"]},  # Nogai
+    "kum": {"code": "kum", "voices": ["kum-RU"]},  # Kumyk
+    "ava": {"code": "ava", "voices": ["ava-RU"]},  # Avar
+    "ddo": {"code": "ddo", "voices": ["ddo-RU"]},  # Tsez
+    "bua": {"code": "bua", "voices": ["bua-RU"]},  # Buriat
+    "xal": {"code": "xal", "voices": ["xal-RU"]},  # Kalmyk
+    "tyv": {"code": "tyv", "voices": ["tyv-RU"]},  # Tuvan
+    "alt": {"code": "alt", "voices": ["alt-RU"]},  # Southern Altai
+    "kjh": {"code": "kjh", "voices": ["kjh-RU"]},  # Khakas
+    "cjs": {"code": "cjs", "voices": ["cjs-RU"]},  # Shor
+    "ckt": {"code": "ckt", "voices": ["ckt-RU"]},  # Chukchi
+    "eve": {"code": "eve", "voices": ["eve-RU"]},  # Even
+    "evn": {"code": "evn", "voices": ["evn-RU"]},  # Evenki
+    "neg": {"code": "neg", "voices": ["neg-RU"]},  # Negidal
+    "oaa": {"code": "oaa", "voices": ["oaa-RU"]},  # Orok
+    "ulc": {"code": "ulc", "voices": ["ulc-RU"]},  # Ulch
+    "ude": {"code": "ude", "voices": ["ude-RU"]},  # Udege
+    "ket": {"code": "ket", "voices": ["ket-RU"]},  # Ket
+    "sel": {"code": "sel", "voices": ["sel-RU"]},  # Selkup
+    "yrk": {"code": "yrk", "voices": ["yrk-RU"]},  # Nenets
+    "mns": {"code": "mns", "voices": ["mns-RU"]},  # Mansi
+    "kca": {"code": "kca", "voices": ["kca-RU"]},  # Khanty
+    "myv": {"code": "myv", "voices": ["myv-RU"]},  # Erzya
+    "mdf": {"code": "mdf", "voices": ["mdf-RU"]},  # Moksha
+    "udm": {"code": "udm", "voices": ["udm-RU"]},  # Udmurt
+    "koi": {"code": "koi", "voices": ["koi-RU"]},  # Komi-Permyak
+    "kpv": {"code": "kpv", "voices": ["kpv-RU"]},  # Komi-Zyrian
+    "mhr": {"code": "mhr", "voices": ["mhr-RU"]},  # Eastern Mari
+    "mrj": {"code": "mrj", "voices": ["mrj-RU"]},  # Western Mari
+    "chm": {"code": "chm", "voices": ["chm-RU"]},  # Mari
+}
+
+# Audio settings
+AUDIO_SETTINGS = {
+    "speeds": [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],  # Available playback speeds
+    "default_speed": 1.0,  # Default playback speed
+    "volume_range": (0, 100),  # Volume range (0-100)
+    "default_volume": 80,  # Default volume
+    "pitch_range": (0.5, 2.0),  # Pitch range
+    "default_pitch": 1.0,  # Default pitch
+}
+
+# Set page config
 st.set_page_config(
-    page_title="Notes to Flashcards AI",
+    page_title="Notes-to-Flashcards AI",
+    page_icon="📘",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Initialize session state
+def initialize_session_state():
+    if "selected_lang_code" not in st.session_state:
+        st.session_state.selected_lang_code = "en"
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+    if "flashcard_history" not in st.session_state:
+        st.session_state.flashcard_history = []
+    if "study_stats" not in st.session_state:
+        st.session_state.study_stats = {
+            "total_cards": 0,
+            "cards_studied": 0,
+            "correct_answers": 0
+        }
 
 # Add custom CSS for the chat button
 st.markdown("""
@@ -189,272 +370,141 @@ def generate_flashcards_batch(text: str, num_cards: int = 5) -> List[Dict[str, s
     
     return flashcards
 
-def generate_flashcards(text: str) -> List[Dict[str, str]]:
-    """Generate flashcards from text using optimized batch processing and caching."""
-    lang = st.session_state.selected_lang_code
-    
-    # Check cache first for exact text match
-    cache_key = f"{text[:1000]}_{lang}"  # Use first 1000 chars as key
-    if cache_key in st.session_state:
-        return st.session_state[cache_key]
-    
-    # Split text into optimized chunks
-    chunks = chunk_text(text, max_chunk_size=1500, overlap=200)  # Increased chunk size and overlap
-    all_flashcards = []
-    
-    # Process chunks in parallel with progress tracking
-    total_chunks = len(chunks)
-    processed_chunks = 0
-    
-    with ThreadPoolExecutor(max_workers=min(4, total_chunks)) as executor:
-        # Generate flashcards for each chunk
-        future_to_chunk = {
-            executor.submit(generate_flashcards_batch, chunk): chunk 
-            for chunk in chunks
-        }
+def generate_flashcards(text: str, num_cards: int, lang_code: str) -> List[Dict[str, str]]:
+    """Generate flashcards from input text using OpenAI API"""
+    try:
+        # Get the appropriate language code for gTTS
+        gtts_lang = LANG_MAP.get(lang_code, "en")
         
-        # Collect results as they complete
-        for future in as_completed(future_to_chunk):
-            try:
-                chunk_flashcards = future.result()
-                all_flashcards.extend(chunk_flashcards)
-                processed_chunks += 1
+        # Generate flashcards using OpenAI
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": f"Generate {num_cards} flashcards in {lang_code}. Each flashcard should have a question and answer. Make the content educational and engaging."},
+                {"role": "user", "content": text}
+            ],
+            temperature=0.7,
+            max_tokens=1000
+        )
+        
+        # Parse the response and create flashcards
+        flashcards = []
+        content = response.choices[0].message.content
+        
+        # Split content into individual cards
+        cards = content.split("\n\n")
+        for card in cards:
+            if "Q:" in card and "A:" in card:
+                question = card.split("Q:")[1].split("A:")[0].strip()
+                answer = card.split("A:")[1].strip()
                 
-                # Update progress
-                if 'progress_bar' in st.session_state:
-                    progress = 30 + (60 * processed_chunks / total_chunks)
-                    st.session_state.progress_bar.progress(min(90, int(progress)))
+                # Generate audio for question and answer
+                audio_question = text_to_audio_base64(question, lang_code)
+                audio_answer = text_to_audio_base64(answer, lang_code)
                 
-            except Exception as e:
-                st.error(f"Error processing chunk: {str(e)}")
+                flashcards.append({
+                    "question": question,
+                    "answer": answer,
+                    "audio_question": audio_question,
+                    "audio_answer": audio_answer
+                })
+        
+        return flashcards[:num_cards]  # Ensure we only return the requested number of cards
+        
+    except Exception as e:
+        st.error(translate_text(f"Error generating flashcards: {str(e)}", lang_code))
+        return []
+
+def text_to_audio_base64(text, lang_code="en", voice=None, speed=1.0):
+    """Convert text to audio using gTTS and return as base64 string
     
-    # Remove duplicates while preserving order and difficulty
-    seen = set()
-    unique_flashcards = []
-    for card in all_flashcards:
-        card_key = (card['question'], card['answer'])
-        if card_key not in seen:
-            seen.add(card_key)
-            unique_flashcards.append(card)
-    
-    # Sort by difficulty
-    difficulty_order = {"easy": 0, "medium": 1, "hard": 2}
-    unique_flashcards.sort(key=lambda x: difficulty_order.get(x.get('difficulty', 'medium'), 1))
-    
-    # Cache the results
-    st.session_state[cache_key] = unique_flashcards
-    
-    # Translate flashcards if needed
-    if lang != "en":
-        translated_flashcards = []
-        for card in unique_flashcards:
-            translated_flashcards.append({
-                "question": translate_text(card['question'], lang),
-                "answer": translate_text(card['answer'], lang),
-                "difficulty": card.get('difficulty', 'medium')
+    Args:
+        text (str): Text to convert to speech
+        lang_code (str): Language code (e.g., 'en', 'es', 'fr')
+        voice (str, optional): Specific voice to use (e.g., 'en-US', 'es-ES')
+        speed (float, optional): Speech rate (0.5 to 2.0)
+    """
+    try:
+        # Get language settings
+        lang_settings = LANG_MAP.get(lang_code, {"code": "en", "voices": ["en-US"]})
+        gtts_lang = lang_settings["code"]
+        
+        # Validate and set voice
+        if voice and voice in lang_settings["voices"]:
+            gtts_lang = voice
+        elif lang_settings["voices"]:
+            gtts_lang = lang_settings["voices"][0]  # Use first available voice
+        
+        # Validate speed
+        speed = max(0.5, min(2.0, float(speed)))
+        
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_file:
+            temp_filename = temp_file.name
+        
+        # Generate speech with speed control
+        tts = gTTS(text=text, lang=gtts_lang, slow=(speed < 1.0))
+        tts.save(temp_filename)
+        
+        # If speed is not 1.0, adjust the audio speed
+        if speed != 1.0:
+            from pydub import AudioSegment
+            audio = AudioSegment.from_mp3(temp_filename)
+            # Adjust speed by changing frame rate
+            audio = audio._spawn(audio.raw_data, overrides={
+                "frame_rate": int(audio.frame_rate * speed)
             })
-        return translated_flashcards
-    
-    return unique_flashcards
+            audio.export(temp_filename, format="mp3")
+        
+        # Read the file and convert to base64
+        with open(temp_filename, 'rb') as audio_file:
+            audio_bytes = audio_file.read()
+            audio_base64 = base64.b64encode(audio_bytes).decode()
+        
+        # Clean up the temporary file
+        os.unlink(temp_filename)
+        
+        return audio_base64
+    except Exception as e:
+        st.error(f"Error generating audio: {str(e)}")
+        return None
 
 def render_flip_cards(flashcards: List[Dict[str, str]], lang_code: str):
-    """Render flashcards with difficulty indicators and improved styling."""
-    html = """
-    <style>
-    .card-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px;
-        justify-content: center;
-        padding: 20px;
-    }
-
-    .flip-card {
-        background-color: transparent;
-        width: 300px;
-        height: 200px;
-        perspective: 1000px;
-        margin-bottom: 20px;
-    }
-
-    .flip-card-inner {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        text-align: center;
-        transition: transform 0.6s;
-        transform-style: preserve-3d;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        border-radius: 15px;
-    }
-
-    .flip-card:hover .flip-card-inner {
-        transform: rotateY(180deg);
-    }
-
-    .flip-card-front, .flip-card-back {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        -webkit-backface-visibility: hidden;
-        backface-visibility: hidden;
-        border-radius: 15px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        box-sizing: border-box;
-    }
-
-    .flip-card-front {
-        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-        color: #2c3e50;
-        border: 1px solid #e9ecef;
-    }
-
-    .flip-card-back {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        color: #2c3e50;
-        transform: rotateY(180deg);
-        border: 1px solid #dee2e6;
-    }
-
-    .card-number {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        font-size: 14px;
-        color: #6c757d;
-    }
-
-    .card-content {
-        font-size: 16px;
-        line-height: 1.5;
-        overflow-y: auto;
-        max-height: 140px;
-        width: 100%;
-        padding: 10px;
-    }
-
-    .card-label {
-        font-size: 12px;
-        color: #6c757d;
-        margin-bottom: 5px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* Custom scrollbar for card content */
-    .card-content::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .card-content::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 3px;
-    }
-
-    .card-content::-webkit-scrollbar-thumb {
-        background: #888;
-        border-radius: 3px;
-    }
-
-    .card-content::-webkit-scrollbar-thumb:hover {
-        background: #555;
-    }
-
-    /* Responsive design */
-    @media (max-width: 768px) {
-        .flip-card {
-            width: 100%;
-            max-width: 300px;
-        }
-    }
-    </style>
-    <div class="card-container">
-    """
-
-    # Add difficulty indicators to the cards
-    difficulty_colors = {
-        "easy": "#4CAF50",  # Green
-        "medium": "#FFC107",  # Yellow
-        "hard": "#F44336"  # Red
-    }
-    
+    """Render flashcards with flip animation and audio support"""
     for i, card in enumerate(flashcards):
-        difficulty = card.get('difficulty', 'medium')
-        difficulty_color = difficulty_colors.get(difficulty, "#FFC107")
+        # Add unique ID to card
+        card['id'] = f"card_{i}"
         
-        # Add difficulty indicator to card HTML
-        html += f"""
-        <div class="flip-card">
-            <div class="flip-card-inner">
-                <div class="flip-card-front" style="border-left: 5px solid {difficulty_color}">
-                    <div class="card-number">
-                        {translate_text('Card', lang_code)} {i+1}
-                        <span class="difficulty-badge" style="background-color: {difficulty_color}">
-                            {translate_text(difficulty.capitalize(), lang_code)}
-                        </span>
+        with st.container():
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                # Front of card (Question)
+                st.markdown(f"""
+                    <div class="flashcard" onclick="flipCard(this)">
+                        <div class="flashcard-inner">
+                            <div class="flashcard-front">
+                                <h3>{card['question']}</h3>
+                            </div>
+                            <div class="flashcard-back">
+                                <h3>{card['answer']}</h3>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-label">{translate_text('Question', lang_code)}</div>
-                    <div class="card-content">{card['question']}</div>
-                </div>
-                <div class="flip-card-back" style="border-left: 5px solid {difficulty_color}">
-                    <div class="card-number">
-                        {translate_text('Card', lang_code)} {i+1}
-                        <span class="difficulty-badge" style="background-color: {difficulty_color}">
-                            {translate_text(difficulty.capitalize(), lang_code)}
-                        </span>
-                    </div>
-                    <div class="card-label">{translate_text('Answer', lang_code)}</div>
-                    <div class="card-content">{card['answer']}</div>
-                </div>
-            </div>
-        </div>
-        """
-
-    html += "</div>"
-    
-    # Add instructions
-    st.markdown(f"""
-    <div style='text-align: center; margin-bottom: 20px; color: #666;'>
-        {translate_text('💡 Hover over a card to flip it and see the answer', lang_code)}
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Add difficulty legend
-    html += """
-    <div class="difficulty-legend">
-        <span style="color: #4CAF50">●</span> Easy
-        <span style="color: #FFC107">●</span> Medium
-        <span style="color: #F44336">●</span> Hard
-    </div>
-    """
-    
-    # Render the cards
-    st.markdown(html, unsafe_allow_html=True)
-
-def initialize_session_state():
-    """Initialize session state variables."""
-    if "chatbot" not in st.session_state:
-        st.session_state.chatbot = Chatbot(FAQ_DICT_EN)
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-    if "current_notes" not in st.session_state:
-        st.session_state.current_notes = None
-    if "selected_lang_code" not in st.session_state:
-        st.session_state.selected_lang_code = "en"
-    if "flashcard_history" not in st.session_state:
-        st.session_state.flashcard_history = []
-    if "study_stats" not in st.session_state:
-        st.session_state.study_stats = {
-            "matching_games_played": 0,
-            "matching_games_won": 0,
-            "practice_tests_taken": 0,
-            "practice_tests_passed": 0,
-            "total_flashcards_created": 0
-        }
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                # Audio controls for question
+                st.markdown(f"**{translate_text('Question Audio', lang_code)}:**")
+                card['text'] = card['question']  # Set text for audio generation
+                render_audio_controls(card, lang_code)
+                
+                # Audio controls for answer
+                st.markdown(f"**{translate_text('Answer Audio', lang_code)}:**")
+                card['text'] = card['answer']  # Update text for audio generation
+                render_audio_controls(card, lang_code)
+                
+                # Add a small gap between cards
+                st.markdown("<br>", unsafe_allow_html=True)
 
 def save_flashcards_to_history(flashcards, source="generated"):
     """Save flashcards to history with metadata."""
@@ -466,7 +516,7 @@ def save_flashcards_to_history(flashcards, source="generated"):
         "language": st.session_state.selected_lang_code
     }
     st.session_state.flashcard_history.append(history_entry)
-    st.session_state.study_stats["total_flashcards_created"] += len(flashcards)
+    st.session_state.study_stats["total_cards"] += len(flashcards)
 
 def render_flashcard_history():
     """Render the flashcard history section."""
@@ -521,13 +571,13 @@ def render_study_stats():
     with col1:
         st.metric(
             translate_text("Total Flashcards", st.session_state.selected_lang_code),
-            stats["total_flashcards_created"]
+            stats["total_cards"]
         )
     
     with col2:
         matching_win_rate = (
-            (stats["matching_games_won"] / stats["matching_games_played"] * 100)
-            if stats["matching_games_played"] > 0
+            (stats["correct_answers"] / stats["cards_studied"] * 100)
+            if stats["cards_studied"] > 0
             else 0
         )
         st.metric(
@@ -537,8 +587,8 @@ def render_study_stats():
     
     with col3:
         practice_pass_rate = (
-            (stats["practice_tests_passed"] / stats["practice_tests_taken"] * 100)
-            if stats["practice_tests_taken"] > 0
+            (stats["correct_answers"] / stats["cards_studied"] * 100)
+            if stats["cards_studied"] > 0
             else 0
         )
         st.metric(
@@ -549,13 +599,13 @@ def render_study_stats():
 def update_study_stats(game_type, won=False):
     """Update study statistics."""
     if game_type == "matching":
-        st.session_state.study_stats["matching_games_played"] += 1
+        st.session_state.study_stats["cards_studied"] += 1
         if won:
-            st.session_state.study_stats["matching_games_won"] += 1
+            st.session_state.study_stats["correct_answers"] += 1
     elif game_type == "practice":
-        st.session_state.study_stats["practice_tests_taken"] += 1
+        st.session_state.study_stats["cards_studied"] += 1
         if won:
-            st.session_state.study_stats["practice_tests_passed"] += 1
+            st.session_state.study_stats["correct_answers"] += 1
 
 def render_chat_message(message, is_user=True):
     """Render a chat message with enhanced styling."""
@@ -580,28 +630,12 @@ def render_chat_message(message, is_user=True):
             </div>
         """, unsafe_allow_html=True)
 
-def process_chat_input(user_input):
-    """Process user input and generate appropriate response."""
-    # Get translated FAQ dictionary for current language
+def process_chat_input(user_input: str) -> str:
+    """Process chat input and return response in the selected language."""
+    # Get FAQ dictionary in current language
     faq_dict = get_faq_dict_translated(st.session_state.selected_lang_code)
-    
-    # Check if it's a question about the app using the callable chatbot
-    response = st.session_state.chatbot(user_input, faq_dict)
-    
-    # If it's not a FAQ question, try to generate flashcards
-    if response == translate_text("I'm sorry, I don't know the answer to that. Try asking something else!", st.session_state.selected_lang_code):
-        if st.session_state.current_notes:
-            try:
-                with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
-                    flashcards = generate_flashcards(st.session_state.current_notes)
-                    response = translate_text("Here are some flashcards based on your notes:\n\n", st.session_state.selected_lang_code) + "\n\n".join([f"{card['question']}\n{card['answer']}" for card in flashcards])
-            except Exception as e:
-                st.error(translate_text(f"Error generating flashcards: {str(e)}", st.session_state.selected_lang_code))
-                response = translate_text("I had trouble generating flashcards. Please try again.", st.session_state.selected_lang_code)
-        else:
-            response = translate_text("I can help you generate flashcards! Please upload or enter some notes first.", st.session_state.selected_lang_code)
-    
-    return response
+    chatbot = Chatbot(faq_dict, lang_code=st.session_state.selected_lang_code)
+    return chatbot.get_fuzzy_response(user_input)
 
 def matching_game(flashcards, lang_code):
     """Interactive matching game for flashcards."""
@@ -1092,13 +1126,29 @@ def render_language_selector():
     
     # Language groups for better organization
     language_groups = {
-        translate_text("Popular Languages", st.session_state.selected_lang_code): [
-            "English", "Español", "中文", "हिंदी", "Français", "Deutsch", "日本語"
+        translate_text("Major Languages", st.session_state.selected_lang_code): [
+            "English", "Español", "中文", "हिंदी", "Français", "Deutsch", "日本語", "한국어", "Русский", "Português", "العربية", "Italiano"
         ],
-        translate_text("More Languages", st.session_state.selected_lang_code): [
-            "한국어", "Русский", "Português", "العربية", "Italiano", "বাংলা", "اردو",
-            "Türkçe", "Tiếng Việt", "Polski", "Nederlands", "Bahasa Indonesia",
-            "Svenska", "తెలుగు"
+        translate_text("South Asian", st.session_state.selected_lang_code): [
+            "বাংলা", "తెలుగు", "தமிழ்", "मराठी", "ગુજરાતી", "ಕನ್ನಡ", "മലയാളം", "ਪੰਜਾਬੀ", "اردو", "नेपाली", "සිංහල"
+        ],
+        translate_text("European", st.session_state.selected_lang_code): [
+            "Nederlands", "Polski", "Svenska", "Dansk", "Suomi", "Norsk", "Ελληνικά", "Magyar", "Română", "Slovenčina", "Українська", "Български",
+            "Hrvatski", "Српски", "Català", "Euskara", "Galego", "Íslenska"
+        ],
+        translate_text("Middle Eastern", st.session_state.selected_lang_code): [
+            "فارسی", "Türkçe", "עברית", "کوردی", "پښتو"
+        ],
+        translate_text("Southeast Asian", st.session_state.selected_lang_code): [
+            "Bahasa Indonesia", "Bahasa Melayu", "ไทย", "Tiếng Việt", "ខ្មែរ", "ລາວ", "မြန်မာ"
+        ],
+        translate_text("African", st.session_state.selected_lang_code): [
+            "Afrikaans", "Kiswahili", "Yorùbá", "isiZulu", "isiXhosa", "Sesotho", "chiShona", "Chichewa", "Kinyarwanda", "Soomaali", "አማርኛ", "Hausa",
+            "Igbo", "Malagasy"
+        ],
+        translate_text("Other Languages", st.session_state.selected_lang_code): [
+            "ქართული", "Հայերեն", "O'zbek", "Қазақ", "Кыргыз", "Тоҷикӣ", "Türkmen", "Монгол", "བོད་སྐད་", "ትግርኛ", "Afaan Oromoo",
+            "Cymraeg", "Gaeilge", "Malti"
         ]
     }
     
@@ -1107,6 +1157,39 @@ def render_language_selector():
     
     # Track if language was changed
     language_changed = False
+    
+    # Language code mapping
+    LANGUAGE_CODES = {
+        # Major Languages
+        "English": "en", "Español": "es", "中文": "zh", "हिंदी": "hi", "Français": "fr", "Deutsch": "de",
+        "日本語": "ja", "한국어": "ko", "Русский": "ru", "Português": "pt", "العربية": "ar", "Italiano": "it",
+        
+        # South Asian
+        "বাংলা": "bn", "తెలుగు": "te", "தமிழ்": "ta", "मराठी": "mr", "ગુજરાતી": "gu", "ಕನ್ನಡ": "kn",
+        "മലയാളം": "ml", "ਪੰਜਾਬੀ": "pa", "اردو": "ur", "नेपाली": "ne", "සිංහල": "si",
+        
+        # European
+        "Nederlands": "nl", "Polski": "pl", "Svenska": "sv", "Dansk": "da", "Suomi": "fi", "Norsk": "no",
+        "Ελληνικά": "el", "Magyar": "hu", "Română": "ro", "Slovenčina": "sk", "Українська": "uk", "Български": "bg",
+        "Hrvatski": "hr", "Српски": "sr", "Català": "ca", "Euskara": "eu", "Galego": "gl", "Íslenska": "is",
+        
+        # Middle Eastern
+        "فارسی": "fa", "Türkçe": "tr", "עברית": "he", "کوردی": "ku", "پښتو": "ps",
+        
+        # Southeast Asian
+        "Bahasa Indonesia": "id", "Bahasa Melayu": "ms", "ไทย": "th", "Tiếng Việt": "vi", "ខ្មែរ": "km",
+        "ລາວ": "lo", "မြန်မာ": "my",
+        
+        # African
+        "Afrikaans": "af", "Kiswahili": "sw", "Yorùbá": "yo", "isiZulu": "zu", "isiXhosa": "xh", "Sesotho": "st",
+        "chiShona": "sn", "Chichewa": "ny", "Kinyarwanda": "rw", "Soomaali": "so", "አማርኛ": "am", "Hausa": "ha",
+        "Igbo": "ig", "Malagasy": "mg",
+        
+        # Other Languages
+        "ქართული": "ka", "Հայերեն": "hy", "O'zbek": "uz", "Қазақ": "kk", "Кыргыз": "ky", "Тоҷикӣ": "tg",
+        "Türkmen": "tk", "Монгол": "mn", "བོད་སྐད་": "bo", "ትግርኛ": "ti", "Afaan Oromoo": "om",
+        "Cymraeg": "cy", "Gaeilge": "ga", "Malti": "mt"
+    }
     
     # Populate each tab with language buttons
     for tab, languages in zip(lang_tabs, language_groups.values()):
@@ -1119,13 +1202,13 @@ def render_language_selector():
                         lang,
                         key=f"lang_{lang}",
                         use_container_width=True,
-                        type="primary" if LANGUAGES[lang] == st.session_state.selected_lang_code else "secondary"
+                        type="primary" if LANGUAGE_CODES[lang] == st.session_state.selected_lang_code else "secondary"
                     ):
-                        st.session_state.selected_lang_code = LANGUAGES[lang]
+                        st.session_state.selected_lang_code = LANGUAGE_CODES[lang]
                         language_changed = True
     
     # Show current language
-    current_lang = next((k for k, v in LANGUAGES.items() if v == st.session_state.selected_lang_code), "English")
+    current_lang = next((k for k, v in LANGUAGE_CODES.items() if v == st.session_state.selected_lang_code), "English")
     st.sidebar.markdown(f"**{translate_text('Current Language:', st.session_state.selected_lang_code)}** {current_lang}")
     
     # Language change notification
@@ -1241,14 +1324,216 @@ def generate_flashcards_from_ocr(text: str, max_cards: int = 5) -> List[Dict[str
     
     return flashcards
 
+def render_chatbot(faq_dict: Dict[str, str]):
+    """Render the chatbot interface using Streamlit's chat components."""
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    chatbot = Chatbot(faq_dict, st.session_state.selected_lang_code)
+
+    st.markdown("### 💬 " + translate_text("Need help? Ask me anything!", st.session_state.selected_lang_code))
+
+    # Display chat history
+    for message in st.session_state.chat_history:
+        with st.chat_message(message["role"]):
+            st.write(translate_text(message["content"], st.session_state.selected_lang_code))
+
+    # Chat input
+    if prompt := st.chat_input(translate_text("Ask a question...", st.session_state.selected_lang_code)):
+        # Add user message to chat history
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        
+        # Get response from chatbot
+        response, related_questions = chatbot.get_fuzzy_response(prompt)
+        
+        # Add assistant response to chat history
+        st.session_state.chat_history.append({"role": "assistant", "content": response})
+        
+        # Display the messages
+        with st.chat_message("user"):
+            st.write(translate_text(prompt, st.session_state.selected_lang_code))
+        with st.chat_message("assistant"):
+            st.write(translate_text(response, st.session_state.selected_lang_code))
+            
+            # Display related questions if available
+            if related_questions:
+                st.write(translate_text("Related questions you might want to ask:", st.session_state.selected_lang_code))
+                for question in related_questions:
+                    if st.button(question, key=f"related_{question}"):
+                        st.session_state.chat_history.append({"role": "user", "content": question})
+                        st.experimental_rerun()
+
+    # Clear chat history button
+    if st.button(translate_text("Clear Chat History", st.session_state.selected_lang_code)):
+        st.session_state.chat_history = []
+        st.experimental_rerun()
+
+def render_feedback_form():
+    """Render the feedback form in the sidebar."""
+    with st.sidebar.expander(translate_text("💬 Feedback / Suggestion Box", st.session_state.selected_lang_code)):
+        name = st.text_input(
+            translate_text("Your Name", st.session_state.selected_lang_code),
+            placeholder=translate_text("Optional", st.session_state.selected_lang_code)
+        )
+        
+        feedback_type = st.radio(
+            translate_text("Feedback Type", st.session_state.selected_lang_code),
+            [
+                translate_text("Suggestion", st.session_state.selected_lang_code),
+                translate_text("Bug Report", st.session_state.selected_lang_code),
+                translate_text("Feature Request", st.session_state.selected_lang_code),
+                translate_text("Language Support", st.session_state.selected_lang_code),
+                translate_text("Other", st.session_state.selected_lang_code)
+            ]
+        )
+        
+        suggestion = st.text_area(
+            translate_text("Your Feedback / Suggestion", st.session_state.selected_lang_code),
+            placeholder=translate_text("Please describe your feedback in detail...", st.session_state.selected_lang_code),
+            height=150
+        )
+        
+        # Optional contact information
+        with st.expander(translate_text("Contact Information (Optional)", st.session_state.selected_lang_code)):
+            email = st.text_input(
+                translate_text("Your email:", st.session_state.selected_lang_code),
+                placeholder=translate_text("We'll only use this to follow up on your feedback", st.session_state.selected_lang_code)
+            )
+            st.checkbox(
+                translate_text("I'd like to be notified when this is addressed", st.session_state.selected_lang_code),
+                key="notify_me"
+            )
+        
+        # Rating
+        st.slider(
+            translate_text("How would you rate your experience?", st.session_state.selected_lang_code),
+            min_value=1,
+            max_value=5,
+            value=5,
+            key="app_rating",
+            help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
+        )
+        
+        if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary"):
+            if suggestion:
+                # Here you would typically save the feedback to a database or file
+                # For now, we'll just show a success message
+                st.success(translate_text("Thank you for your feedback! We'll review it and get back to you if needed.", st.session_state.selected_lang_code))
+                # Clear the form
+                st.experimental_rerun()
+            else:
+                st.error(translate_text("Please provide your feedback before submitting.", st.session_state.selected_lang_code))
+
+def render_image_input():
+    """Render the image input section with file upload and camera options."""
+    st.write(translate_text("Upload an image of your notes or take a photo:", st.session_state.selected_lang_code))
+    
+    # Create tabs for upload and camera
+    upload_tab, camera_tab = st.tabs([
+        translate_text("📤 Upload Image", st.session_state.selected_lang_code),
+        translate_text("📷 Take Photo", st.session_state.selected_lang_code)
+    ])
+    
+    with upload_tab:
+        uploaded_file = st.file_uploader(
+            translate_text("Choose an image file (PNG, JPG, JPEG):", st.session_state.selected_lang_code),
+            type=["png", "jpg", "jpeg"],
+            help=translate_text("Supported formats: PNG, JPG, JPEG", st.session_state.selected_lang_code)
+        )
+        
+        if uploaded_file is not None:
+            # Process uploaded image
+            try:
+                image = Image.open(uploaded_file)
+                extracted_text = pytesseract.image_to_string(image)
+                if extracted_text.strip():
+                    st.success(translate_text("Text extracted successfully!", st.session_state.selected_lang_code))
+                    st.text_area(
+                        translate_text("Extracted Text:", st.session_state.selected_lang_code),
+                        value=extracted_text,
+                        height=200,
+                        key="extracted_text_upload"
+                    )
+                    return extracted_text
+                else:
+                    st.error(translate_text("No text could be extracted from the image. Please try another image.", st.session_state.selected_lang_code))
+            except Exception as e:
+                st.error(translate_text(f"Error processing image: {str(e)}", st.session_state.selected_lang_code))
+    
+    with camera_tab:
+        st.write(translate_text("Take a photo of your notes using your device's camera:", st.session_state.selected_lang_code))
+        camera_image = st.camera_input(translate_text("Take a picture", st.session_state.selected_lang_code))
+        
+        if camera_image is not None:
+            # Process camera image
+            try:
+                image = Image.open(camera_image)
+                extracted_text = pytesseract.image_to_string(image)
+                if extracted_text.strip():
+                    st.success(translate_text("Text extracted successfully!", st.session_state.selected_lang_code))
+                    st.text_area(
+                        translate_text("Extracted Text:", st.session_state.selected_lang_code),
+                        value=extracted_text,
+                        height=200,
+                        key="extracted_text_camera"
+                    )
+                    return extracted_text
+                else:
+                    st.error(translate_text("No text could be extracted from the photo. Please try again.", st.session_state.selected_lang_code))
+            except Exception as e:
+                st.error(translate_text(f"Error processing photo: {str(e)}", st.session_state.selected_lang_code))
+    
+    return None
+
+def render_audio_controls(card, lang_code):
+    """Render audio controls with voice selection and speed control"""
+    col1, col2, col3 = st.columns([2, 2, 1])
+    
+    with col1:
+        # Voice selection
+        lang_settings = LANG_MAP.get(lang_code, {"voices": ["en-US"]})
+        voices = lang_settings["voices"]
+        selected_voice = st.selectbox(
+            translate_text("Voice", lang_code),
+            options=voices,
+            key=f"voice_{card['id']}"
+        )
+    
+    with col2:
+        # Speed control
+        speed = st.slider(
+            translate_text("Speed", lang_code),
+            min_value=0.5,
+            max_value=2.0,
+            value=1.0,
+            step=0.25,
+            key=f"speed_{card['id']}"
+        )
+    
+    with col3:
+        # Play button
+        if st.button("▶️", key=f"play_{card['id']}"):
+            # Generate audio with selected settings
+            audio_data = text_to_audio_base64(
+                card['text'],
+                lang_code,
+                voice=selected_voice,
+                speed=speed
+            )
+            if audio_data:
+                st.audio(audio_data, format="audio/mp3")
+
 def main():
     initialize_session_state()
     
     # Render language selector in sidebar
     render_language_selector()
     
+    # Render feedback form in sidebar
+    render_feedback_form()
+    
     # Main content
-    st.title(translate_text("🧠 Notes to Flashcards AI", st.session_state.selected_lang_code))
+    st.title("📘 Notes-to-Flashcards AI")
     
     # Language-specific welcome message
     st.info(translate_text(
@@ -1257,10 +1542,12 @@ def main():
         st.session_state.selected_lang_code
     ))
 
-    # Create tabs for different input methods
-    input_tab1, input_tab2 = st.tabs([
+    # Create tabs for different input methods and feedback
+    input_tab1, input_tab2, feedback_tab, chat_tab = st.tabs([
         translate_text("📝 Text Input", st.session_state.selected_lang_code),
-        translate_text("🖼️ Image Upload", st.session_state.selected_lang_code)
+        translate_text("🖼️ Image Upload", st.session_state.selected_lang_code),
+        translate_text("💡 Feedback", st.session_state.selected_lang_code),
+        translate_text("💬 Chat", st.session_state.selected_lang_code)
     ])
 
     with input_tab1:
@@ -1271,151 +1558,151 @@ def main():
             key="text_input"
         )
         
-        # File uploader for text files
-        uploaded_file = st.file_uploader(
-            translate_text("Or upload a text file (PDF, DOCX, TXT):", st.session_state.selected_lang_code),
-            type=["pdf", "docx", "txt"],
-            key="file_uploader"
-        )
-
-        if uploaded_file is not None:
-            text_input = extract_text_from_file(uploaded_file)
-            if text_input:
-                st.text_area(
-                    translate_text("Extracted text:", st.session_state.selected_lang_code),
-                    value=text_input,
-                    height=200,
-                    key="extracted_text"
-                )
+        if text_input:
+            if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
+                with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
+                    flashcards = generate_flashcards(text_input, 5, st.session_state.selected_lang_code)
+                    if flashcards:
+                        st.success(translate_text(f"Generated {len(flashcards)} flashcards!", st.session_state.selected_lang_code))
+                        save_flashcards_to_history(flashcards)
+                        render_flip_cards(flashcards, st.session_state.selected_lang_code)
+                    else:
+                        st.error(translate_text("Failed to generate flashcards. Please try again.", st.session_state.selected_lang_code))
 
     with input_tab2:
-        # Image upload
-        uploaded_image = st.file_uploader(
-            translate_text("Upload an image containing text (PNG, JPG, JPEG):", st.session_state.selected_lang_code),
-            type=["png", "jpg", "jpeg"],
-            key="image_uploader"
-        )
-
-        if uploaded_image is not None:
-            # Display the uploaded image
-            image = Image.open(uploaded_image)
-            st.image(image, caption=translate_text("Uploaded Image", st.session_state.selected_lang_code), use_column_width=True)
-
-            # Process image with OCR
-            if st.button(translate_text("Extract Text from Image", st.session_state.selected_lang_code)):
-                with st.spinner(translate_text("Processing image with OCR...", st.session_state.selected_lang_code)):
-                    extracted_text = extract_text_from_image(image)
-                    if extracted_text:
-                        st.success(translate_text("Text extracted successfully!", st.session_state.selected_lang_code))
-                        text_input = extracted_text
-                        st.text_area(
-                            translate_text("Extracted text:", st.session_state.selected_lang_code),
-                            value=extracted_text,
-                            height=200,
-                            key="ocr_text"
-                        )
-                        
-                        # Add option to choose flashcard generation method for OCR text
-                        generation_method = st.radio(
-                            translate_text("Choose flashcard generation method:", st.session_state.selected_lang_code),
-                            [
-                                translate_text("Quick (split by Q&A format)", st.session_state.selected_lang_code),
-                                translate_text("AI-Powered (advanced generation)", st.session_state.selected_lang_code)
-                            ],
-                            key="ocr_generation_method"
-                        )
-                        
-                        if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
-                            with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
-                                if generation_method == translate_text("Quick (split by Q&A format)", st.session_state.selected_lang_code):
-                                    flashcards = generate_flashcards_from_ocr(extracted_text)
-                                else:
-                                    flashcards = generate_flashcards(extracted_text)
-                                
-                                if flashcards:
-                                    st.success(translate_text(f"Generated {len(flashcards)} flashcards!", st.session_state.selected_lang_code))
-                                    save_flashcards_to_history(flashcards)
-                                    render_flip_cards(flashcards, st.session_state.selected_lang_code)
-                                    render_print_button()
-                                else:
-                                    st.error(translate_text("Failed to generate flashcards. Please try again or use a different image.", st.session_state.selected_lang_code))
+        extracted_text = render_image_input()
+        if extracted_text:
+            if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
+                with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
+                    flashcards = generate_flashcards(extracted_text, 5, st.session_state.selected_lang_code)
+                    if flashcards:
+                        st.success(translate_text(f"Generated {len(flashcards)} flashcards!", st.session_state.selected_lang_code))
+                        save_flashcards_to_history(flashcards)
+                        render_flip_cards(flashcards, st.session_state.selected_lang_code)
                     else:
-                        st.error(translate_text("Failed to extract text from image. Please try another image.", st.session_state.selected_lang_code))
+                        st.error(translate_text("Failed to generate flashcards. Please try again.", st.session_state.selected_lang_code))
 
-    # Generate flashcards button (appears if there's text input from text tab)
-    if text_input and not uploaded_image:  # Only show for text input tab
-        if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
-            with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
-                flashcards = generate_flashcards(text_input)
-                if flashcards:
-                    st.success(translate_text("Flashcards generated successfully!", st.session_state.selected_lang_code))
-                    save_flashcards_to_history(flashcards)
-                    render_flip_cards(flashcards, st.session_state.selected_lang_code)
-                    render_print_button()
-                else:
-                    st.error(translate_text("Failed to generate flashcards. Please try again.", st.session_state.selected_lang_code))
-
-    # Sidebar with enhanced chatbot
-    with st.sidebar:
-        st.header(translate_text("💬 Interactive Chat", st.session_state.selected_lang_code))
+    with feedback_tab:
+        st.subheader(translate_text("💡 Help Us Improve", st.session_state.selected_lang_code))
         
-        # Display chat history
-        chat_container = st.container()
-        with chat_container:
-            for message in st.session_state.chat_history:
-                render_chat_message(
-                    translate_text(message["text"], st.session_state.selected_lang_code),
-                    is_user=(message["role"] == "user")
-                )
-        
-        # Chat input
-        st.markdown("---")
-        user_input = st.text_input(
-            translate_text("Type your question here...", st.session_state.selected_lang_code),
-            key="chat_input"
+        # Feedback form with multiple sections
+        feedback_type = st.radio(
+            translate_text("What type of feedback do you have?", st.session_state.selected_lang_code),
+            [
+                translate_text("Suggestion", st.session_state.selected_lang_code),
+                translate_text("Bug Report", st.session_state.selected_lang_code),
+                translate_text("Feature Request", st.session_state.selected_lang_code),
+                translate_text("Language Support", st.session_state.selected_lang_code),
+                translate_text("Other", st.session_state.selected_lang_code)
+            ]
         )
         
-        # Create a container for the button with custom styling
-        button_container = st.container()
-        with button_container:
-            col1, col2 = st.columns([1, 4])
-            with col1:
-                # Create a custom styled button using HTML
-                button_html = f"""
-                <div style="display: flex; justify-content: center; align-items: center; min-width: 80px;">
-                    <button class="chat-button" onclick="document.getElementById('send_button_clicked').click()">
-                        {translate_text("Send", st.session_state.selected_lang_code)}
-                    </button>
-                </div>
-                """
-                st.markdown(button_html, unsafe_allow_html=True)
-                # Hidden Streamlit button to handle the click
-                send_button_clicked = st.button(
-                    translate_text("Send", st.session_state.selected_lang_code),
-                    key="send_button_clicked",
-                    type="primary",
-                    use_container_width=True
-                )
+        # Dynamic fields based on feedback type
+        if feedback_type == translate_text("Bug Report", st.session_state.selected_lang_code):
+            st.text_area(
+                translate_text("What were you doing when the bug occurred?", st.session_state.selected_lang_code),
+                key="bug_steps",
+                help=translate_text("Please describe the steps to reproduce the bug", st.session_state.selected_lang_code)
+            )
+            st.text_area(
+                translate_text("What did you expect to happen?", st.session_state.selected_lang_code),
+                key="expected_behavior"
+            )
+            st.text_area(
+                translate_text("What actually happened?", st.session_state.selected_lang_code),
+                key="actual_behavior"
+            )
+            st.selectbox(
+                translate_text("How severe is this bug?", st.session_state.selected_lang_code),
+                [
+                    translate_text("Critical - App is unusable", st.session_state.selected_lang_code),
+                    translate_text("Major - Important feature broken", st.session_state.selected_lang_code),
+                    translate_text("Minor - Small issue", st.session_state.selected_lang_code),
+                    translate_text("Cosmetic - Visual issue only", st.session_state.selected_lang_code)
+                ],
+                key="bug_severity"
+            )
         
-        # Process input on button click or Enter key
-        if (send_button_clicked or user_input) and user_input:
-            # Add user message to chat history
-            st.session_state.chat_history.append({
-                "role": "user",
-                "text": user_input
-            })
-            
-            # Generate and add AI response
-            with st.spinner(translate_text("Thinking...", st.session_state.selected_lang_code)):
-                ai_response = process_chat_input(user_input)
-                st.session_state.chat_history.append({
-                    "role": "ai",
-                    "text": ai_response
-                })
-            
-            # Clear input
-            st.session_state.chat_input = ""
-            st.experimental_rerun()
+        elif feedback_type == translate_text("Feature Request", st.session_state.selected_lang_code):
+            st.text_area(
+                translate_text("What feature would you like to see?", st.session_state.selected_lang_code),
+                key="feature_description",
+                help=translate_text("Please describe the feature you'd like to see", st.session_state.selected_lang_code)
+            )
+            st.text_area(
+                translate_text("How would this feature help you?", st.session_state.selected_lang_code),
+                key="feature_benefit"
+            )
+            st.multiselect(
+                translate_text("Which aspects of the app would this feature affect?", st.session_state.selected_lang_code),
+                [
+                    translate_text("Flashcard Generation", st.session_state.selected_lang_code),
+                    translate_text("Language Support", st.session_state.selected_lang_code),
+                    translate_text("Audio Features", st.session_state.selected_lang_code),
+                    translate_text("User Interface", st.session_state.selected_lang_code),
+                    translate_text("Study Tools", st.session_state.selected_lang_code),
+                    translate_text("Other", st.session_state.selected_lang_code)
+                ],
+                key="feature_areas"
+            )
+        
+        elif feedback_type == translate_text("Language Support", st.session_state.selected_lang_code):
+            st.text_input(
+                translate_text("Which language would you like to add?", st.session_state.selected_lang_code),
+                key="new_language"
+            )
+            st.text_area(
+                translate_text("Any specific language features or requirements?", st.session_state.selected_lang_code),
+                key="language_requirements",
+                help=translate_text("Please describe any special requirements for this language", st.session_state.selected_lang_code)
+            )
+            st.checkbox(
+                translate_text("I can help with translation", st.session_state.selected_lang_code),
+                key="can_help_translate"
+            )
+        
+        # Common fields for all feedback types
+        st.text_area(
+            translate_text("Your feedback:", st.session_state.selected_lang_code),
+            height=150,
+            key="feedback_text",
+            placeholder=translate_text("Please describe your feedback in detail...", st.session_state.selected_lang_code)
+        )
+        
+        # Optional contact information
+        with st.expander(translate_text("Contact Information (Optional)", st.session_state.selected_lang_code)):
+            email = st.text_input(
+                translate_text("Your email:", st.session_state.selected_lang_code),
+                placeholder=translate_text("We'll only use this to follow up on your feedback", st.session_state.selected_lang_code)
+            )
+            st.checkbox(
+                translate_text("I'd like to be notified when this is addressed", st.session_state.selected_lang_code),
+                key="notify_me"
+            )
+        
+        # Rating
+        st.slider(
+            translate_text("How would you rate your experience with the app?", st.session_state.selected_lang_code),
+            min_value=1,
+            max_value=5,
+            value=5,
+            key="app_rating",
+            help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
+        )
+        
+        # Submit button
+        if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary"):
+            if st.session_state.feedback_text:
+                # Here you would typically save the feedback to a database or file
+                # For now, we'll just show a success message
+                st.success(translate_text("Thank you for your feedback! We'll review it and get back to you if needed.", st.session_state.selected_lang_code))
+                # Clear the form
+                st.experimental_rerun()
+            else:
+                st.error(translate_text("Please provide your feedback before submitting.", st.session_state.selected_lang_code))
+
+    with chat_tab:
+        render_chatbot(FAQ_DICT_EN)
 
     # Add history and stats sections
     st.markdown("---")

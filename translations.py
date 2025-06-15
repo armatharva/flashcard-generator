@@ -1,6 +1,6 @@
 TRANSLATIONS = {
     "en": {
-        "title": "🧠 Notes to Flashcards AI",
+        "title": "📘 Notes-to-Flashcards AI",
         "chat_header": "💬 Interactive Chat",
         "chat_input_placeholder": "Type your question here...",
         "send_button": "Send",

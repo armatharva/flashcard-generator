@@ -8,6 +8,7 @@ import pytesseract
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'
 from PIL import Image
 import streamlit as st
+from typing import List
 
 # Initialize models
 @st.cache_resource
@@ -153,4 +154,47 @@ def generate_flashcards(text, num_flashcards=5, tokenizer=None, model=None):
                 "answer": answer
             })
     
-    return flashcard_pairs 
+    return flashcard_pairs
+
+def chunk_text(text: str, max_chunk_size: int = 1500, overlap: int = 200) -> List[str]:
+    """Split text into overlapping chunks of specified size.
+    
+    Args:
+        text (str): The text to split into chunks
+        max_chunk_size (int): Maximum size of each chunk in characters
+        overlap (int): Number of characters to overlap between chunks
+        
+    Returns:
+        List[str]: List of text chunks
+    """
+    if not text:
+        return []
+        
+    # Split text into sentences to avoid breaking mid-sentence
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    chunks = []
+    current_chunk = []
+    current_size = 0
+    
+    for sentence in sentences:
+        sentence_size = len(sentence)
+        
+        # If adding this sentence would exceed the chunk size
+        if current_size + sentence_size > max_chunk_size and current_chunk:
+            # Join current chunk and add to chunks
+            chunks.append(' '.join(current_chunk))
+            
+            # Start new chunk with overlap
+            overlap_text = ' '.join(current_chunk[-overlap:]) if overlap > 0 else ''
+            current_chunk = [overlap_text] if overlap_text else []
+            current_size = len(overlap_text)
+        
+        # Add sentence to current chunk
+        current_chunk.append(sentence)
+        current_size += sentence_size
+    
+    # Add the last chunk if it's not empty
+    if current_chunk:
+        chunks.append(' '.join(current_chunk))
+    
+    return chunks 
