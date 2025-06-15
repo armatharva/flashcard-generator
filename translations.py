@@ -1,3 +1,11 @@
+from googletrans import Translator
+import streamlit as st
+
+# Initialize translator with caching
+@st.cache_resource
+def get_translator():
+    return Translator()
+
 TRANSLATIONS = {
     "en": {
         "title": "📘 Notes-to-Flashcards AI",
@@ -97,4 +105,25 @@ LANGUAGES = {
 
 def get_translation(key, lang_code="en"):
     """Get translation for a key in the specified language."""
-    return TRANSLATIONS.get(lang_code, TRANSLATIONS["en"]).get(key, key) 
+    return TRANSLATIONS.get(lang_code, TRANSLATIONS["en"]).get(key, key)
+
+def translate_text(text: str, dest: str = 'en') -> str:
+    """Translate text to the specified language using Google Translate.
+    
+    Args:
+        text (str): The text to translate
+        dest (str): Destination language code (default: 'en')
+        
+    Returns:
+        str: Translated text, or original text if translation fails
+    """
+    if not text or dest == 'en':  # No translation needed for empty text or English
+        return text
+        
+    try:
+        translator = get_translator()
+        result = translator.translate(text, dest=dest)
+        return result.text
+    except Exception as e:
+        st.warning(f"Translation failed: {str(e)}. Using original text.")
+        return text 
