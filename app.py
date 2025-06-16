@@ -2,8 +2,7 @@ import streamlit as st
 from transformers import pipeline
 from utils import extract_text_from_file, extract_text_from_image
 from chatbot import Chatbot
-from translations import LANGUAGES, get_translation
-from googletrans import Translator
+from translations import LANGUAGES, get_translation, translate_text, get_translator
 import csv
 import io
 import random
@@ -49,7 +48,7 @@ st.markdown("""
 
 @st.cache_resource
 def get_translator():
-    return Translator()
+    return get_translator()
 
 def translate_text(text, dest_lang):
     """Translate text to the specified language using Google Translate."""
@@ -1245,6 +1244,26 @@ def render_feedback_form():
         translate_text("I'd like to be notified when this is addressed", st.session_state.selected_lang_code),
         key="notify_me"
     )
+    
+    # Rating
+    st.sidebar.slider(
+        translate_text("How would you rate your experience?", st.session_state.selected_lang_code),
+        min_value=1,
+        max_value=5,
+        value=5,
+        key="app_rating",
+        help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
+    )
+    
+    if st.sidebar.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary"):
+        if suggestion:
+            # Here you would typically save the feedback to a database or file
+            # For now, we'll just show a success message
+            st.sidebar.success(translate_text("Thank you for your feedback! We'll review it and get back to you if needed.", st.session_state.selected_lang_code))
+            # Clear the form
+            st.experimental_rerun()
+        else:
+            st.sidebar.error(translate_text("Please provide your feedback before submitting.", st.session_state.selected_lang_code))
 
 def main():
     initialize_session_state()
