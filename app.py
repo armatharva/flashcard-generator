@@ -11,7 +11,6 @@ from chatbot import Chatbot
 from translations import translate_text, LANGUAGES
 import tempfile
 import time
-import openai
 from pydub import AudioSegment
 
 # Map our language codes to gTTS language codes and voice options
