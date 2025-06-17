@@ -1207,22 +1207,9 @@ def render_print_button():
     components.html(print_js, height=50)
 
 def render_feedback_form():
-    st.sidebar.markdown("## 💬 " + translate_text("Feedback", st.session_state.selected_lang_code))
-
-    # Main feedback expander in the sidebar
-    with st.sidebar.expander(translate_text("Submit Feedback", st.session_state.selected_lang_code)):
-        name = st.text_input(translate_text("Your name:", st.session_state.selected_lang_code))
-        feedback = st.text_area(translate_text("Your feedback or suggestions:", st.session_state.selected_lang_code))
-
-        if st.button(translate_text("Submit", st.session_state.selected_lang_code)):
-            st.success(translate_text("Thank you for your feedback!", st.session_state.selected_lang_code))
-
-    # This section is now outside the expander
-    st.sidebar.markdown("### " + translate_text("Contact Information (Optional)", st.session_state.selected_lang_code))
-    email = st.sidebar.text_input(
-        translate_text("Your email:", st.session_state.selected_lang_code),
-        placeholder=translate_text("We'll only use this to follow up on your feedback.", st.session_state.selected_lang_code)
-    )
+    """Render the feedback form in the sidebar."""
+    # Function temporarily disabled to fix expander issues
+    pass
 
 def main():
     initialize_session_state()
