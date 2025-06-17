@@ -1,5 +1,6 @@
-# FORCE FRESH DEPLOYMENT - Updated 2025-01-17 17:45 UTC
-# This comment forces Streamlit Cloud to use the new version without caching
+# MAJOR VERSION UPDATE - CACHE CLEAR REQUIRED - 2025-01-17 18:15 UTC
+# This forces Streamlit Cloud to completely refresh and use new code
+# Previous version had nested expander issues - FIXED
 
 import streamlit as st
 import pytesseract
@@ -189,7 +190,12 @@ st.set_page_config(
     page_title="Notes-to-Flashcards AI",
     page_icon="📘",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
 )
 
 # Initialize session state
