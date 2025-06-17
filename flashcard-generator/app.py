@@ -1369,59 +1369,22 @@ def render_chatbot(faq_dict: Dict[str, str]):
 
 def render_feedback_form():
     """Render the feedback form in the sidebar."""
-    with st.sidebar.expander(translate_text("💬 Feedback / Suggestion Box", st.session_state.selected_lang_code)):
-        name = st.text_input(
-            translate_text("Your Name", st.session_state.selected_lang_code),
-            placeholder=translate_text("Optional", st.session_state.selected_lang_code)
-        )
-        
-        feedback_type = st.radio(
-            translate_text("Feedback Type", st.session_state.selected_lang_code),
-            [
-                translate_text("Suggestion", st.session_state.selected_lang_code),
-                translate_text("Bug Report", st.session_state.selected_lang_code),
-                translate_text("Feature Request", st.session_state.selected_lang_code),
-                translate_text("Language Support", st.session_state.selected_lang_code),
-                translate_text("Other", st.session_state.selected_lang_code)
-            ]
-        )
-        
-        suggestion = st.text_area(
-            translate_text("Your Feedback / Suggestion", st.session_state.selected_lang_code),
-            placeholder=translate_text("Please describe your feedback in detail...", st.session_state.selected_lang_code),
-            height=150
-        )
-        
-        # Optional contact information
-        st.markdown("### " + translate_text("Contact Information (Optional)", st.session_state.selected_lang_code))
-        email = st.text_input(
-            translate_text("Your email:", st.session_state.selected_lang_code),
-            placeholder=translate_text("We'll only use this to follow up on your feedback", st.session_state.selected_lang_code)
-        )
-        st.checkbox(
-            translate_text("I'd like to be notified when this is addressed", st.session_state.selected_lang_code),
-            key="notify_me"
-        )
-        
-        # Rating
-        st.slider(
-            translate_text("How would you rate your experience?", st.session_state.selected_lang_code),
-            min_value=1,
-            max_value=5,
-            value=5,
-            key="app_rating",
-            help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
-        )
-        
-        if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary"):
-            if suggestion:
-                # Here you would typically save the feedback to a database or file
-                # For now, we'll just show a success message
-                st.success(translate_text("Thank you for your feedback! We'll review it and get back to you if needed.", st.session_state.selected_lang_code))
-                # Clear the form
-                st.experimental_rerun()
-            else:
-                st.error(translate_text("Please provide your feedback before submitting.", st.session_state.selected_lang_code))
+    st.sidebar.markdown("## 💬 " + translate_text("Feedback", st.session_state.selected_lang_code))
+
+    # Main feedback expander in the sidebar
+    with st.sidebar.expander(translate_text("Submit Feedback", st.session_state.selected_lang_code)):
+        name = st.text_input(translate_text("Your name:", st.session_state.selected_lang_code))
+        feedback = st.text_area(translate_text("Your feedback or suggestions:", st.session_state.selected_lang_code))
+
+        if st.button(translate_text("Submit", st.session_state.selected_lang_code)):
+            st.success(translate_text("Thank you for your feedback!", st.session_state.selected_lang_code))
+
+    # This section is now outside the expander
+    st.sidebar.markdown("### " + translate_text("Contact Information (Optional)", st.session_state.selected_lang_code))
+    email = st.sidebar.text_input(
+        translate_text("Your email:", st.session_state.selected_lang_code),
+        placeholder=translate_text("We'll only use this to follow up on your feedback.", st.session_state.selected_lang_code)
+    )
 
 def render_image_input():
     """Render the image input section with file upload and camera options."""
