@@ -1,3 +1,6 @@
+# FORCE FRESH DEPLOYMENT - render_feedback_form function completely removed - 2025-06-17 16:30
+# This comment forces Streamlit Cloud to use the new version without caching
+
 import streamlit as st
 import pytesseract
 from PIL import Image
