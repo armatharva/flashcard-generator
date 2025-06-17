@@ -1477,9 +1477,6 @@ def main():
     # Render language selector in sidebar
     render_language_selector()
     
-    # Render feedback form in sidebar - temporarily disabled to fix expander issue
-    # render_feedback_form()
-    
     # Main content
     st.title("📘 Notes-to-Flashcards AI")
     
