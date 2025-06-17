@@ -1,3 +1,6 @@
+# FORCE CACHE CLEAR - Updated 2025-01-17 17:45 UTC
+# This timestamp forces Streamlit Cloud to use the new version without caching
+
 import streamlit as st
 from transformers import pipeline
 from utils import extract_text_from_file, extract_text_from_image
@@ -19,7 +22,12 @@ import json
 st.set_page_config(
     page_title="Notes to Flashcards AI",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
 )
 
 # Add custom CSS for the chat button
