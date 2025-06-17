@@ -1367,11 +1367,6 @@ def render_chatbot(faq_dict: Dict[str, str]):
         st.session_state.chat_history = []
         st.experimental_rerun()
 
-def render_feedback_form():
-    """Render the feedback form in the sidebar."""
-    # Function temporarily disabled to fix expander issues
-    pass
-
 def render_image_input():
     """Render the image input section with file upload and camera options."""
     st.write(translate_text("Upload an image of your notes or take a photo:", st.session_state.selected_lang_code))
