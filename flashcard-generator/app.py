@@ -1476,6 +1476,7 @@ def render_audio_controls(card, lang_code):
                 st.audio(audio_data, format="audio/mp3")
 
 def main():
+    # CACHE CLEAR FORCE - COMPLETELY REWRITTEN MAIN FUNCTION
     initialize_session_state()
     
     # Render language selector in sidebar
@@ -1618,7 +1619,7 @@ def main():
             placeholder=translate_text("Please describe your feedback in detail...", st.session_state.selected_lang_code)
         )
         
-        # Optional contact information
+        # Optional contact information - NO EXPANDER USED
         st.markdown("### " + translate_text("Contact Information (Optional)", st.session_state.selected_lang_code))
         email = st.text_input(
             translate_text("Your email:", st.session_state.selected_lang_code),
