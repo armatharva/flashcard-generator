@@ -1220,50 +1220,49 @@ def render_feedback_form():
     feedback_success = st.session_state.get("feedback_success", False)
     feedback_error = st.session_state.get("feedback_error", False)
 
-    # Place feedback form in the sidebar with a single expander
-    with st.sidebar:
-        with st.expander(translate_text("💬 Send Feedback", lang_code)):
-            if feedback_submitted:
-                if feedback_success:
-                    st.success(translate_text("Thank you for your feedback!", lang_code))
-                elif feedback_error:
-                    st.error(translate_text("An error occurred while submitting your feedback.", lang_code))
-            else:
-                feedback_type = st.selectbox(
-                    translate_text("What type of feedback would you like to give?", lang_code),
-                    [
-                        translate_text("Bug report", lang_code),
-                        translate_text("Feature request", lang_code),
-                        translate_text("General feedback", lang_code)
-                    ]
+    # Single top-level expander in sidebar for feedback (no nested st.sidebar)
+    with st.expander(translate_text("💬 Send Feedback", lang_code)):
+        if feedback_submitted:
+            if feedback_success:
+                st.success(translate_text("Thank you for your feedback!", lang_code))
+            elif feedback_error:
+                st.error(translate_text("An error occurred while submitting your feedback.", lang_code))
+        else:
+            feedback_type = st.selectbox(
+                translate_text("What type of feedback would you like to give?", lang_code),
+                [
+                    translate_text("Bug report", lang_code),
+                    translate_text("Feature request", lang_code),
+                    translate_text("General feedback", lang_code)
+                ]
+            )
+            feedback_text = st.text_area(
+                translate_text("Your feedback", lang_code),
+                placeholder=translate_text("Type your feedback here...", lang_code)
+            )
+
+            add_contact = st.checkbox(
+                translate_text("Add contact information (optional)", lang_code)
+            )
+
+            email = ""
+            name = ""
+            if add_contact:
+                email = st.text_input(
+                    translate_text("Your email:", lang_code),
+                    placeholder=translate_text("We'll only use this to follow up if needed.", lang_code)
                 )
-                feedback_text = st.text_area(
-                    translate_text("Your feedback", lang_code),
-                    placeholder=translate_text("Type your feedback here...", lang_code)
+                name = st.text_input(
+                    translate_text("Your name (optional):", lang_code)
                 )
 
-                add_contact = st.checkbox(
-                    translate_text("Add contact information (optional)", lang_code)
-                )
-
-                email = ""
-                name = ""
-                if add_contact:
-                    email = st.text_input(
-                        translate_text("Your email:", lang_code),
-                        placeholder=translate_text("We'll only use this to follow up if needed.", lang_code)
-                    )
-                    name = st.text_input(
-                        translate_text("Your name (optional):", lang_code)
-                    )
-
-                if st.button(translate_text("Submit Feedback", lang_code)):
-                    if feedback_text.strip() == "":
-                        st.warning(translate_text("Please enter your feedback before submitting.", lang_code))
-                    else:
-                        st.session_state["feedback_submitted"] = True
-                        st.session_state["feedback_success"] = True
-                        # Place your actual feedback submission logic here
+            if st.button(translate_text("Submit Feedback", lang_code)):
+                if feedback_text.strip() == "":
+                    st.warning(translate_text("Please enter your feedback before submitting.", lang_code))
+                else:
+                    st.session_state["feedback_submitted"] = True
+                    st.session_state["feedback_success"] = True
+                    # Place your actual feedback submission logic here
 
 def main():
     initialize_session_state()
@@ -1342,6 +1341,10 @@ def main():
             # Clear input
             st.session_state.chat_input = ""
             st.experimental_rerun()
+        
+        # Add feedback form to sidebar
+        st.markdown("---")
+        render_feedback_form()
 
     # Add history and stats sections
     st.markdown("---")
