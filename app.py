@@ -1215,54 +1215,54 @@ def render_print_button():
     components.html(print_js, height=50)
 
 def render_feedback_form():
-    lang_code = st.session_state.get('selected_lang_code', 'en')
-    feedback_submitted = st.session_state.get("feedback_submitted", False)
-    feedback_success = st.session_state.get("feedback_success", False)
-    feedback_error = st.session_state.get("feedback_error", False)
-
-    # Single top-level expander in sidebar for feedback (no nested st.sidebar)
-    with st.expander(translate_text("💬 Send Feedback", lang_code)):
-        if feedback_submitted:
-            if feedback_success:
-                st.success(translate_text("Thank you for your feedback!", lang_code))
-            elif feedback_error:
-                st.error(translate_text("An error occurred while submitting your feedback.", lang_code))
-        else:
-            feedback_type = st.selectbox(
-                translate_text("What type of feedback would you like to give?", lang_code),
-                [
-                    translate_text("Bug report", lang_code),
-                    translate_text("Feature request", lang_code),
-                    translate_text("General feedback", lang_code)
-                ]
+    """Render the feedback form in the sidebar (NO nested expanders!)"""
+    with st.sidebar.expander(translate_text("💬 Feedback / Suggestion Box", st.session_state.selected_lang_code)):
+        name = st.text_input(
+            translate_text("Your Name", st.session_state.selected_lang_code),
+            placeholder=translate_text("Optional", st.session_state.selected_lang_code)
+        )
+        feedback_type = st.radio(
+            translate_text("Feedback Type", st.session_state.selected_lang_code),
+            [
+                translate_text("Suggestion", st.session_state.selected_lang_code),
+                translate_text("Bug Report", st.session_state.selected_lang_code),
+                translate_text("Feature Request", st.session_state.selected_lang_code),
+                translate_text("Language Support", st.session_state.selected_lang_code),
+                translate_text("Other", st.session_state.selected_lang_code)
+            ]
+        )
+        suggestion = st.text_area(
+            translate_text("Your Feedback / Suggestion", st.session_state.selected_lang_code),
+            placeholder=translate_text("Please describe your feedback in detail...", st.session_state.selected_lang_code),
+            height=150
+        )
+        # Use a checkbox (NOT expander!) for optional contact info
+        show_contact = st.checkbox(translate_text("Add contact information (optional)", st.session_state.selected_lang_code))
+        email = ""
+        notify_me = False
+        if show_contact:
+            email = st.text_input(
+                translate_text("Your email:", st.session_state.selected_lang_code),
+                placeholder=translate_text("We'll only use this to follow up on your feedback", st.session_state.selected_lang_code)
             )
-            feedback_text = st.text_area(
-                translate_text("Your feedback", lang_code),
-                placeholder=translate_text("Type your feedback here...", lang_code)
+            notify_me = st.checkbox(
+                translate_text("I'd like to be notified when this is addressed", st.session_state.selected_lang_code),
+                key="notify_me"
             )
-
-            add_contact = st.checkbox(
-                translate_text("Add contact information (optional)", lang_code)
-            )
-
-            email = ""
-            name = ""
-            if add_contact:
-                email = st.text_input(
-                    translate_text("Your email:", lang_code),
-                    placeholder=translate_text("We'll only use this to follow up if needed.", lang_code)
-                )
-                name = st.text_input(
-                    translate_text("Your name (optional):", lang_code)
-                )
-
-            if st.button(translate_text("Submit Feedback", lang_code)):
-                if feedback_text.strip() == "":
-                    st.warning(translate_text("Please enter your feedback before submitting.", lang_code))
-                else:
-                    st.session_state["feedback_submitted"] = True
-                    st.session_state["feedback_success"] = True
-                    # Place your actual feedback submission logic here
+        st.slider(
+            translate_text("How would you rate your experience?", st.session_state.selected_lang_code),
+            min_value=1,
+            max_value=5,
+            value=5,
+            key="app_rating",
+            help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
+        )
+        if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary"):
+            if suggestion:
+                st.success(translate_text("Thank you for your feedback! We'll review it and get back to you if needed.", st.session_state.selected_lang_code))
+                st.experimental_rerun()
+            else:
+                st.error(translate_text("Please provide your feedback before submitting.", st.session_state.selected_lang_code))
 
 def main():
     initialize_session_state()
