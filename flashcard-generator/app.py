@@ -1636,7 +1636,7 @@ def main():
             min_value=1,
             max_value=5,
             value=5,
-            key="app_rating",
+            key="main_app_rating",
             help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
         )
         
