@@ -1392,7 +1392,7 @@ def render_feedback_form():
             height=150
         )
         
-         show_contact = st.checkbox(translate_text("Add contact information (optional)", st.session_state.selected_lang_code))
+        show_contact = st.checkbox(translate_text("Add contact information (optional)", st.session_state.selected_lang_code))
         email = ""
         notify_me = False
         if show_contact:
