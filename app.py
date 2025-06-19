@@ -1405,14 +1405,14 @@ def render_feedback_form():
                 key="notify_me"
             )
         # Rating
-        st.slider(
-            translate_text("How would you rate your experience?", st.session_state.selected_lang_code),
-            min_value=1,
-            max_value=5,
-            value=5,
-            key="app_rating",
-            help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
-        )
+       st.slider(
+    translate_text("How would you rate your experience?", st.session_state.selected_lang_code),
+    min_value=1,
+    max_value=5,
+    value=5,
+    key="sidebar_app_rating",  # <-- NOW UNIQUE!
+    help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
+)
         
         if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary"):
             if suggestion:
@@ -1686,7 +1686,7 @@ def main():
             min_value=1,
             max_value=5,
             value=5,
-            key="app_rating",
+            key="main_app_rating",
             help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
         )
         
