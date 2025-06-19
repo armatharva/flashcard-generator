@@ -1392,17 +1392,18 @@ def render_feedback_form():
             height=150
         )
         
-        # Optional contact information
-        with st.expander(translate_text("Contact Information (Optional)", st.session_state.selected_lang_code)):
+            show_contact = st.checkbox(translate_text("Add contact information (optional)", st.session_state.selected_lang_code))
+        email = ""
+        notify_me = False
+        if show_contact:
             email = st.text_input(
                 translate_text("Your email:", st.session_state.selected_lang_code),
                 placeholder=translate_text("We'll only use this to follow up on your feedback", st.session_state.selected_lang_code)
             )
-            st.checkbox(
+            notify_me = st.checkbox(
                 translate_text("I'd like to be notified when this is addressed", st.session_state.selected_lang_code),
                 key="notify_me"
             )
-        
         # Rating
         st.slider(
             translate_text("How would you rate your experience?", st.session_state.selected_lang_code),
