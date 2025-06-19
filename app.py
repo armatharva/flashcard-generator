@@ -1405,7 +1405,7 @@ def render_feedback_form():
                 key="notify_me"
             )
         # Rating
-       st.slider(
+        st.slider(
     translate_text("How would you rate your experience?", st.session_state.selected_lang_code),
     min_value=1,
     max_value=5,
