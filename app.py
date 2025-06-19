@@ -1254,7 +1254,7 @@ def render_feedback_form():
             min_value=1,
             max_value=5,
             value=5,
-            key="app_rating",
+            key="sidebar_app_rating",
             help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
         )
         if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary"):
