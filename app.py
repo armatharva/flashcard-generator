@@ -1699,7 +1699,7 @@ if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_co
                 st.success(translate_text("Thank you for your feedback! We'll review it and get back to you if needed.", st.session_state.selected_lang_code))
                 # Clear the form
                 st.experimental_rerun()
-            else:
+    else:
                 st.error(translate_text("Please provide your feedback before submitting.", st.session_state.selected_lang_code))
 
     with chat_tab:
