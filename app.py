@@ -1414,7 +1414,7 @@ def render_feedback_form():
     help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
 )
         
-        if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary"):
+        if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary", key="sidebar_submit_feedback"):
             if suggestion:
                 # Here you would typically save the feedback to a database or file
                 # For now, we'll just show a success message
@@ -1691,8 +1691,9 @@ def main():
         )
         
         # Submit button
-        if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary"):
-            if st.session_state.feedback_text:
+if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary", key="main_submit_feedback"):
+    if st.session_state.feedback_text:
+        # ...
                 # Here you would typically save the feedback to a database or file
                 # For now, we'll just show a success message
                 st.success(translate_text("Thank you for your feedback! We'll review it and get back to you if needed.", st.session_state.selected_lang_code))
