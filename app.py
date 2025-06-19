@@ -1341,10 +1341,9 @@ def main():
             # Clear input
             st.session_state.chat_input = ""
             st.experimental_rerun()
-        
-        # Add feedback form to sidebar
-        st.markdown("---")
-        render_feedback_form()
+
+    # Add feedback form to sidebar (outside the chat sidebar block)
+    render_feedback_form()
 
     # Add history and stats sections
     st.markdown("---")
