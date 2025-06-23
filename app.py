@@ -1579,9 +1579,7 @@ def main():
                         render_flip_cards(flashcards, st.session_state.selected_lang_code)
                     else:
                         st.error(translate_text("Failed to generate flashcards. Please try again.", st.session_state.selected_lang_code))
-
-
-    with feedback_tab:
+with feedback_tab:
     st.info("To provide feedback, please use the feedback form in the sidebar.")
     
     with chat_tab:
