@@ -1548,7 +1548,7 @@ def main():
         translate_text("💬 Chat", st.session_state.selected_lang_code)
     ])
 
-with input_tab1:
+    with input_tab1:
         # Text input area
         text_input = st.text_area(
             translate_text("Enter or paste your notes here:", st.session_state.selected_lang_code),
@@ -1567,7 +1567,7 @@ with input_tab1:
                     else:
                         st.error(translate_text("Failed to generate flashcards. Please try again.", st.session_state.selected_lang_code))
 
-with input_tab2:
+    with input_tab2:
         extracted_text = render_image_input()
         if extracted_text:
             if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
@@ -1579,10 +1579,11 @@ with input_tab2:
                         render_flip_cards(flashcards, st.session_state.selected_lang_code)
                     else:
                         st.error(translate_text("Failed to generate flashcards. Please try again.", st.session_state.selected_lang_code))
-with feedback_tab:
-    st.info("To provide feedback, please use the feedback form in the sidebar.")
-    
-with chat_tab:
+
+    with feedback_tab:
+        st.info("To provide feedback, please use the feedback form in the sidebar.")
+
+    with chat_tab:
         render_chatbot(FAQ_DICT_EN)
 
     # Add history and stats sections
@@ -1596,4 +1597,4 @@ with chat_tab:
     st.markdown(translate_text("Made with ❤️ using Streamlit, BART, and FLAN-T5", st.session_state.selected_lang_code))
 
 if __name__ == "__main__":
-    main() 
+    main()
