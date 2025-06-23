@@ -1367,62 +1367,60 @@ def render_chatbot(faq_dict: Dict[str, str]):
         st.session_state.chat_history = []
         st.experimental_rerun()
 
+import streamlit as st
+import yagmail
+
+EMAIL_USER = st.secrets["EMAIL_USER"]
+EMAIL_PASSWORD = st.secrets["EMAIL_PASSWORD"]
+
+def send_email(subject, body, to=None):
+    if to is None:
+        to = EMAIL_USER
+    yag = yagmail.SMTP(EMAIL_USER, EMAIL_PASSWORD)
+    yag.send(to=to, subject=subject, contents=body)
+
 def render_feedback_form():
-    """Render the feedback form in the sidebar."""
-    with st.sidebar.expander(translate_text("💬 Feedback / Suggestion Box", st.session_state.selected_lang_code)):
-        name = st.text_input(
-            translate_text("Your Name", st.session_state.selected_lang_code),
-            placeholder=translate_text("Optional", st.session_state.selected_lang_code)
-        )
-        
+    """Render the feedback form in the sidebar (the ONLY feedback form)."""
+    with st.sidebar.expander("💬 Feedback / Suggestion Box"):
+        name = st.text_input("Your Name", placeholder="Optional")
         feedback_type = st.radio(
-            translate_text("Feedback Type", st.session_state.selected_lang_code),
-            [
-                translate_text("Suggestion", st.session_state.selected_lang_code),
-                translate_text("Bug Report", st.session_state.selected_lang_code),
-                translate_text("Feature Request", st.session_state.selected_lang_code),
-                translate_text("Language Support", st.session_state.selected_lang_code),
-                translate_text("Other", st.session_state.selected_lang_code)
-            ]
+            "Feedback Type",
+            ["Suggestion", "Bug Report", "Feature Request", "Language Support", "Other"]
         )
-        
         suggestion = st.text_area(
-            translate_text("Your Feedback / Suggestion", st.session_state.selected_lang_code),
-            placeholder=translate_text("Please describe your feedback in detail...", st.session_state.selected_lang_code),
+            "Your Feedback / Suggestion",
+            placeholder="Please describe your feedback in detail...",
             height=150
         )
-        
-        show_contact = st.checkbox(translate_text("Add contact information (optional)", st.session_state.selected_lang_code))
+        show_contact = st.checkbox("Add contact information (optional)")
         email = ""
         notify_me = False
         if show_contact:
-            email = st.text_input(
-                translate_text("Your email:", st.session_state.selected_lang_code),
-                placeholder=translate_text("We'll only use this to follow up on your feedback", st.session_state.selected_lang_code)
-            )
-            notify_me = st.checkbox(
-                translate_text("I'd like to be notified when this is addressed", st.session_state.selected_lang_code),
-                key="notify_me"
-            )
-        # Rating
-        st.slider(
-    translate_text("How would you rate your experience?", st.session_state.selected_lang_code),
-    min_value=1,
-    max_value=5,
-    value=5,
-    key="sidebar_app_rating",  # <-- NOW UNIQUE!
-    help=translate_text("1 = Poor, 5 = Excellent", st.session_state.selected_lang_code)
-)
-        
-        if st.button(translate_text("Submit Feedback", st.session_state.selected_lang_code), type="primary", key="sidebar_submit_feedback"):
+            email = st.text_input("Your email:", placeholder="We'll only use this to follow up on your feedback")
+            notify_me = st.checkbox("I'd like to be notified when this is addressed", key="notify_me")
+        rating = st.slider(
+            "How would you rate your experience?",
+            min_value=1,
+            max_value=5,
+            value=5,
+            key="sidebar_app_rating",
+            help="1 = Poor, 5 = Excellent"
+        )
+
+        if st.button("Submit Feedback", type="primary", key="sidebar_submit_feedback"):
             if suggestion:
-                # Here you would typically save the feedback to a database or file
-                # For now, we'll just show a success message
-                st.success(translate_text("Thank you for your feedback! We'll review it and get back to you if needed.", st.session_state.selected_lang_code))
-                # Clear the form
+                subject = "New Feedback from Notes-to-Flashcards AI"
+                body = f"Name: {name}\nFeedback Type: {feedback_type}\nFeedback/Suggestion: {suggestion}\nRating: {rating}"
+                if show_contact and email:
+                    body += f"\nContact Email: {email}\nNotify: {notify_me}"
+                try:
+                    send_email(subject, body)
+                    st.success("Thank you for your feedback!")
+                except Exception as e:
+                    st.error(f"Failed to send feedback email: {e}")
                 st.experimental_rerun()
             else:
-                st.error(translate_text("Please provide your feedback before submitting.", st.session_state.selected_lang_code))
+                st.error("Please provide your feedback before submitting.")
 
 def render_image_input():
     """Render the image input section with file upload and camera options."""
