@@ -170,7 +170,13 @@ LANG_MAP = {
     "mrj": {"code": "mrj", "voices": ["mrj-RU"]},  # Western Mari
     "chm": {"code": "chm", "voices": ["chm-RU"]},  # Mari
 }
-
+# Insert after LANG_MAP definition (around line 200-250)
+def get_safe_lang_code(lang_code):
+    """Return a valid language code for LANG_MAP, or fallback to 'en'."""
+    if lang_code in LANG_MAP:
+        return lang_code
+    st.warning(f"Selected language '{lang_code}' not supported. Using English as fallback.")
+    return "en"
 # Audio settings
 AUDIO_SETTINGS = {
     "speeds": [0.5, 0.75, 1.0, 1.25, 1.5, 2.0],  # Available playback speeds
@@ -425,7 +431,7 @@ def text_to_audio_base64(text, lang_code="en", voice=None, speed=1.0):
     """
     try:
         # Get language settings
-        lang_settings = LANG_MAP.get(lang_code, {"code": "en", "voices": ["en-US"]})
+lang_settings = LANG_MAP[get_safe_lang_code(lang_code)]
         gtts_lang = lang_settings["code"]
         
         # Validate and set voice
@@ -1203,7 +1209,8 @@ def render_language_selector():
                         use_container_width=True,
                         type="primary" if LANGUAGE_CODES[lang] == st.session_state.selected_lang_code else "secondary"
                     ):
-                        st.session_state.selected_lang_code = LANGUAGE_CODES[lang]
+                       safe_lang = get_safe_lang_code(LANGUAGE_CODES[lang])
+st.session_state.selected_lang_code = safe_lang
                         language_changed = True
     
     # Show current language
@@ -1327,8 +1334,8 @@ def render_chatbot(faq_dict: Dict[str, str]):
     """Render the chatbot interface using Streamlit's chat components."""
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
-
-    chatbot = Chatbot(faq_dict, st.session_state.selected_lang_code)
+        chatbot = Chatbot(faq_dict, 
+        get_safe_lang_code(st.session_state.selected_lang_code))
 
     st.markdown("### 💬 " + translate_text("Need help? Ask me anything!", st.session_state.selected_lang_code))
 
