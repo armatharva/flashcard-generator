@@ -1576,7 +1576,7 @@ if text_input:
   if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
        with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
             flashcards = generate_flashcards(text_input, num_cards, st.session_state.selected_lang_code)
-                    else:
+            else:
                         st.error(translate_text("Failed to generate flashcards. Please try again.", st.session_state.selected_lang_code))
 
  with input_tab2:
