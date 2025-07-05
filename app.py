@@ -1162,32 +1162,35 @@ def quiz_mode(flashcards: List[Dict[str, str]], lang_code: str):
 
 def render_language_selector():
     """Render a user-friendly language selector in the sidebar."""
+    # Get current language code safely
+    current_lang_code = getattr(st.session_state, 'selected_lang_code', 'en')
+    
     st.sidebar.markdown("---")
-    st.sidebar.markdown(f"### {translate_text('🌐 Language Settings', st.session_state.selected_lang_code)}")
+    st.sidebar.markdown(f"### {translate_text('🌐 Language Settings', current_lang_code)}")
     
     # Language groups for better organization
     language_groups = {
-        translate_text("Major Languages", st.session_state.selected_lang_code): [
+        translate_text("Major Languages", current_lang_code): [
             "English", "Español", "中文", "हिंदी", "Français", "Deutsch", "日本語", "한국어", "Русский", "Português", "العربية", "Italiano"
         ],
-        translate_text("South Asian", st.session_state.selected_lang_code): [
+        translate_text("South Asian", current_lang_code): [
             "বাংলা", "తెలుగు", "தமிழ்", "मराठी", "ગુજરાતી", "ಕನ್ನಡ", "മലയാളം", "ਪੰਜਾਬੀ", "اردو", "नेपाली", "සිංහල"
         ],
-        translate_text("European", st.session_state.selected_lang_code): [
+        translate_text("European", current_lang_code): [
             "Nederlands", "Polski", "Svenska", "Dansk", "Suomi", "Norsk", "Ελληνικά", "Magyar", "Română", "Slovenčina", "Українська", "Български",
             "Hrvatski", "Српски", "Català", "Euskara", "Galego", "Íslenska"
         ],
-        translate_text("Middle Eastern", st.session_state.selected_lang_code): [
+        translate_text("Middle Eastern", current_lang_code): [
             "فارسی", "Türkçe", "עברית", "کوردی", "پښتو"
         ],
-        translate_text("Southeast Asian", st.session_state.selected_lang_code): [
+        translate_text("Southeast Asian", current_lang_code): [
             "Bahasa Indonesia", "Bahasa Melayu", "ไทย", "Tiếng Việt", "ខ្មែរ", "ລາວ", "မြန်မာ"
         ],
-        translate_text("African", st.session_state.selected_lang_code): [
+        translate_text("African", current_lang_code): [
             "Afrikaans", "Kiswahili", "Yorùbá", "isiZulu", "isiXhosa", "Sesotho", "chiShona", "Chichewa", "Kinyarwanda", "Soomaali", "አማርኛ", "Hausa",
             "Igbo", "Malagasy"
         ],
-        translate_text("Other Languages", st.session_state.selected_lang_code): [
+        translate_text("Other Languages", current_lang_code): [
             "ქართული", "Հայերեն", "O'zbek", "Қазақ", "Кыргыз", "Тоҷикӣ", "Türkmen", "Монгол", "བོད་སྐད་", "ትግርኛ", "Afaan Oromoo",
             "Cymraeg", "Gaeilge", "Malti"
         ]
@@ -1211,23 +1214,24 @@ def render_language_selector():
                         lang,
                         key=f"lang_{lang}",
                         use_container_width=True,
-                        type="primary" if LANGUAGE_CODES[lang] == st.session_state.selected_lang_code else "secondary"
+                        type="primary" if LANGUAGE_CODES[lang] == current_lang_code else "secondary"
                     ):
                        safe_lang = get_safe_lang_code(LANGUAGE_CODES[lang])
                        st.session_state.selected_lang_code = safe_lang
                        language_changed = True
     
     # Show current language
-current_lang = CODE_TO_LANGUAGE.get(st.session_state.selected_lang_code, "English")
-st.sidebar.markdown(f"**{translate_text('Current Language:', st.session_state.selected_lang_code)}** {current_lang}")
+    current_lang_code = getattr(st.session_state, 'selected_lang_code', 'en')
+    current_lang = CODE_TO_LANGUAGE.get(current_lang_code, "English")
+    st.sidebar.markdown(f"**{translate_text('Current Language:', current_lang_code)}** {current_lang}")
     
     # Language change notification
-if language_changed:
-        st.sidebar.success(translate_text("Language changed! The interface will update.", st.session_state.selected_lang_code))
+    if language_changed:
+        st.sidebar.success(translate_text("Language changed! The interface will update.", current_lang_code))
         # Clear any cached translations
-if "translator" in st.session_state:
+        if "translator" in st.session_state:
             del st.session_state.translator
-st.experimental_rerun()
+        st.experimental_rerun()
 
 def create_flashcards_pdf(flashcards, lang_code):
     """Create a PDF document with flashcards."""
