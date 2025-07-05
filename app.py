@@ -170,7 +170,43 @@ LANG_MAP = {
     "mrj": {"code": "mrj", "voices": ["mrj-RU"]},  # Western Mari
     "chm": {"code": "chm", "voices": ["chm-RU"]},  # Mari
 }
-# Insert after LANG_MAP definition (around line 200-250)
+
+# Language code mapping for UI (language names to codes)
+LANGUAGE_CODES = {
+    # Major Languages
+    "English": "en", "Español": "es", "中文": "zh", "हिंदी": "hi", "Français": "fr", "Deutsch": "de",
+    "日本語": "ja", "한국어": "ko", "Русский": "ru", "Português": "pt", "العربية": "ar", "Italiano": "it",
+    
+    # South Asian
+    "বাংলা": "bn", "తెలుగు": "te", "தமிழ்": "ta", "मराठी": "mr", "ગુજરાતી": "gu", "ಕನ್ನಡ": "kn",
+    "മലയാളം": "ml", "ਪੰਜਾਬੀ": "pa", "اردو": "ur", "नेपाली": "ne", "සිංහල": "si",
+    
+    # European
+    "Nederlands": "nl", "Polski": "pl", "Svenska": "sv", "Dansk": "da", "Suomi": "fi", "Norsk": "no",
+    "Ελληνικά": "el", "Magyar": "hu", "Română": "ro", "Slovenčina": "sk", "Українська": "uk", "Български": "bg",
+    "Hrvatski": "hr", "Српски": "sr", "Català": "ca", "Euskara": "eu", "Galego": "gl", "Íslenska": "is",
+    
+    # Middle Eastern
+    "فارسی": "fa", "Türkçe": "tr", "עברית": "he", "کوردی": "ku", "پښتو": "ps",
+    
+    # Southeast Asian
+    "Bahasa Indonesia": "id", "Bahasa Melayu": "ms", "ไทย": "th", "Tiếng Việt": "vi", "ខ្មែរ": "km",
+    "ລາວ": "lo", "မြန်မာ": "my",
+    
+    # African
+    "Afrikaans": "af", "Kiswahili": "sw", "Yorùbá": "yo", "isiZulu": "zu", "isiXhosa": "xh", "Sesotho": "st",
+    "chiShona": "sn", "Chichewa": "ny", "Kinyarwanda": "rw", "Soomaali": "so", "አማርኛ": "am", "Hausa": "ha",
+    "Igbo": "ig", "Malagasy": "mg",
+    
+    # Other Languages
+    "ქართული": "ka", "Հայերեն": "hy", "O'zbek": "uz", "Қазақ": "kk", "Кыргыз": "ky", "Тоҷикӣ": "tg",
+    "Türkmen": "tk", "Монгол": "mn", "བོད་སྐད་": "bo", "ትግርኛ": "ti", "Afaan Oromoo": "om",
+    "Cymraeg": "cy", "Gaeilge": "ga", "Malti": "mt"
+}
+
+# Create reverse mapping for language code to language name
+CODE_TO_LANGUAGE = {v: k for k, v in LANGUAGE_CODES.items()}
+
 def get_safe_lang_code(lang_code):
     """Return a valid language code for LANG_MAP, or fallback to 'en'."""
     if lang_code in LANG_MAP:
@@ -1163,39 +1199,7 @@ def render_language_selector():
     # Track if language was changed
     language_changed = False
     
-    # Language code mapping
-    LANGUAGE_CODES = {
-        # Major Languages
-        "English": "en", "Español": "es", "中文": "zh", "हिंदी": "hi", "Français": "fr", "Deutsch": "de",
-        "日本語": "ja", "한국어": "ko", "Русский": "ru", "Português": "pt", "العربية": "ar", "Italiano": "it",
-        
-        # South Asian
-        "বাংলা": "bn", "తెలుగు": "te", "தமிழ்": "ta", "मराठी": "mr", "ગુજરાતી": "gu", "ಕನ್ನಡ": "kn",
-        "മലയാളം": "ml", "ਪੰਜਾਬੀ": "pa", "اردو": "ur", "नेपाली": "ne", "සිංහල": "si",
-        
-        # European
-        "Nederlands": "nl", "Polski": "pl", "Svenska": "sv", "Dansk": "da", "Suomi": "fi", "Norsk": "no",
-        "Ελληνικά": "el", "Magyar": "hu", "Română": "ro", "Slovenčina": "sk", "Українська": "uk", "Български": "bg",
-        "Hrvatski": "hr", "Српски": "sr", "Català": "ca", "Euskara": "eu", "Galego": "gl", "Íslenska": "is",
-        
-        # Middle Eastern
-        "فارسی": "fa", "Türkçe": "tr", "עברית": "he", "کوردی": "ku", "پښتو": "ps",
-        
-        # Southeast Asian
-        "Bahasa Indonesia": "id", "Bahasa Melayu": "ms", "ไทย": "th", "Tiếng Việt": "vi", "ខ្មែរ": "km",
-        "ລາວ": "lo", "မြန်မာ": "my",
-        
-        # African
-        "Afrikaans": "af", "Kiswahili": "sw", "Yorùbá": "yo", "isiZulu": "zu", "isiXhosa": "xh", "Sesotho": "st",
-        "chiShona": "sn", "Chichewa": "ny", "Kinyarwanda": "rw", "Soomaali": "so", "አማርኛ": "am", "Hausa": "ha",
-        "Igbo": "ig", "Malagasy": "mg",
-        
-        # Other Languages
-        "ქართული": "ka", "Հայերեն": "hy", "O'zbek": "uz", "Қазақ": "kk", "Кыргыз": "ky", "Тоҷикӣ": "tg",
-        "Türkmen": "tk", "Монгол": "mn", "བོད་སྐད་": "bo", "ትግርኛ": "ti", "Afaan Oromoo": "om",
-        "Cymraeg": "cy", "Gaeilge": "ga", "Malti": "mt"
-    }
-    CODE_TO_LANGUAGE = {v: k for k, v in LANGUAGE_CODES.items()}
+
     # Populate each tab with language buttons
     for tab, languages in zip(lang_tabs, language_groups.values()):
         with tab:
