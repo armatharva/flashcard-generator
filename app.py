@@ -1218,10 +1218,10 @@ current_lang = next((k for k, v in LANGUAGE_CODES.items() if v == st.session_sta
 st.sidebar.markdown(f"**{translate_text('Current Language:', st.session_state.selected_lang_code)}** {current_lang}")
     
     # Language change notification
-    if language_changed:
+if language_changed:
         st.sidebar.success(translate_text("Language changed! The interface will update.", st.session_state.selected_lang_code))
         # Clear any cached translations
-        if "translator" in st.session_state:
+if "translator" in st.session_state:
             del st.session_state.translator
         st.experimental_rerun()
 
