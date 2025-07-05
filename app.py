@@ -1579,12 +1579,23 @@ if text_input:
                     else:
                         st.error(translate_text("Failed to generate flashcards. Please try again.", st.session_state.selected_lang_code))
 
-    with input_tab2:
-        extracted_text = render_image_input()
-        if extracted_text:
-            if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
-                with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
-                    flashcards = generate_flashcards(extracted_text, 5, st.session_state.selected_lang_code)
+ with input_tab2:
+    extracted_text = render_image_input()
+
+    # ADD: Number selector and warning
+    num_cards_img = st.number_input(
+        translate_text("How many flashcards do you want?", st.session_state.selected_lang_code),
+        min_value=1, max_value=50, value=5, step=1,
+        key="num_cards_img"
+    )
+    if num_cards_img > 30:
+        st.warning(translate_text("Generating more than 30 flashcards may take longer.", st.session_state.selected_lang_code))
+
+    if extracted_text:
+        if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
+            with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
+                flashcards = generate_flashcards(extracted_text, num_cards_img, st.session_state.selected_lang_code)
+
                     if flashcards:
                         st.success(translate_text(f"Generated {len(flashcards)} flashcards!", st.session_state.selected_lang_code))
                         save_flashcards_to_history(flashcards)
