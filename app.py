@@ -1579,7 +1579,7 @@ if text_input:
   else:
       st.error(translate_text("Failed to generate flashcards. Please try again.", st.session_state.selected_lang_code))
 
- with input_tab2:
+with input_tab2:
     extracted_text = render_image_input()
 
     # ADD: Number selector and warning
