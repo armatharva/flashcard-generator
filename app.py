@@ -1223,7 +1223,7 @@ if language_changed:
         # Clear any cached translations
 if "translator" in st.session_state:
             del st.session_state.translator
-        st.experimental_rerun()
+st.experimental_rerun()
 
 def create_flashcards_pdf(flashcards, lang_code):
     """Create a PDF document with flashcards."""
