@@ -431,8 +431,8 @@ def text_to_audio_base64(text, lang_code="en", voice=None, speed=1.0):
     """
     try:
         # Get language settings
-lang_settings = LANG_MAP[get_safe_lang_code(lang_code)]
-        gtts_lang = lang_settings["code"]
+       lang_settings = LANG_MAP[get_safe_lang_code(lang_code)]
+       gtts_lang = lang_settings["code"]
         
         # Validate and set voice
         if voice and voice in lang_settings["voices"]:
