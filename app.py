@@ -1557,7 +1557,7 @@ def main():
 
     with input_tab1:
         # Text input area
-text_input = st.text_area(
+    text_input = st.text_area(
     translate_text("Enter or paste your notes here:", st.session_state.selected_lang_code),
     height=200,
     key="text_input"
