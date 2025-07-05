@@ -469,7 +469,7 @@ def text_to_audio_base64(text, lang_code="en", voice=None, speed=1.0):
         # Clean up the temporary file
        os.unlink(temp_filename)
         
-        return audio_base64
+       return audio_base64
     except Exception as e:
         st.error(f"Error generating audio: {str(e)}")
         return None
