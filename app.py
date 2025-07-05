@@ -1564,10 +1564,10 @@ def main():
 )
 
 # ADD: Number of flashcards selector and warning
-        num_cards = st.number_input(
-        translate_text("How many flashcards do you want?", st.session_state.selected_lang_code),
-        min_value=1, max_value=50, value=5, step=1,
-        key="num_cards_text"
+    num_cards = st.number_input(
+    translate_text("How many flashcards do you want?", st.session_state.selected_lang_code),
+    min_value=1, max_value=50, value=5, step=1,
+    key="num_cards_text"
 )
        if num_cards > 30:
     st.warning(translate_text("Generating more than 30 flashcards may take longer.", st.session_state.selected_lang_code))
