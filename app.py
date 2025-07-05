@@ -1211,7 +1211,7 @@ def render_language_selector():
                     ):
                        safe_lang = get_safe_lang_code(LANGUAGE_CODES[lang])
 st.session_state.selected_lang_code = safe_lang
-                        language_changed = True
+language_changed = True
     
     # Show current language
     current_lang = next((k for k, v in LANGUAGE_CODES.items() if v == st.session_state.selected_lang_code), "English")
