@@ -1596,7 +1596,7 @@ with input_tab2:
             with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
                 flashcards = generate_flashcards(extracted_text, num_cards_img, st.session_state.selected_lang_code)
 
-                    if flashcards:
+        if flashcards:
                         st.success(translate_text(f"Generated {len(flashcards)} flashcards!", st.session_state.selected_lang_code))
                         save_flashcards_to_history(flashcards)
                         render_flip_cards(flashcards, st.session_state.selected_lang_code)
