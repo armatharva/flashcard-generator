@@ -1195,7 +1195,7 @@ def render_language_selector():
         "Türkmen": "tk", "Монгол": "mn", "བོད་སྐད་": "bo", "ትግርኛ": "ti", "Afaan Oromoo": "om",
         "Cymraeg": "cy", "Gaeilge": "ga", "Malti": "mt"
     }
-    
+    CODE_TO_LANGUAGE = {v: k for k, v in LANGUAGE_CODES.items()}
     # Populate each tab with language buttons
     for tab, languages in zip(lang_tabs, language_groups.values()):
         with tab:
@@ -1214,7 +1214,7 @@ def render_language_selector():
                        language_changed = True
     
     # Show current language
-current_lang = next((k for k, v in LANGUAGE_CODES.items() if v == st.session_state.selected_lang_code), "English")
+current_lang = CODE_TO_LANGUAGE.get(st.session_state.selected_lang_code, "English")
 st.sidebar.markdown(f"**{translate_text('Current Language:', st.session_state.selected_lang_code)}** {current_lang}")
     
     # Language change notification
