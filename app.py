@@ -435,24 +435,24 @@ def text_to_audio_base64(text, lang_code="en", voice=None, speed=1.0):
        gtts_lang = lang_settings["code"]
         
         # Validate and set voice
-        if voice and voice in lang_settings["voices"]:
+       if voice and voice in lang_settings["voices"]:
             gtts_lang = voice
-        elif lang_settings["voices"]:
+       elif lang_settings["voices"]:
             gtts_lang = lang_settings["voices"][0]  # Use first available voice
         
         # Validate speed
-        speed = max(0.5, min(2.0, float(speed)))
+       speed = max(0.5, min(2.0, float(speed)))
         
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_file:
+       with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_file:
             temp_filename = temp_file.name
         
         # Generate speech with speed control
-        tts = gTTS(text=text, lang=gtts_lang, slow=(speed < 1.0))
-        tts.save(temp_filename)
+       tts = gTTS(text=text, lang=gtts_lang, slow=(speed < 1.0))
+       tts.save(temp_filename)
         
         # If speed is not 1.0, adjust the audio speed
-        if speed != 1.0:
+       if speed != 1.0:
             from pydub import AudioSegment
             audio = AudioSegment.from_mp3(temp_filename)
             # Adjust speed by changing frame rate
@@ -462,7 +462,7 @@ def text_to_audio_base64(text, lang_code="en", voice=None, speed=1.0):
             audio.export(temp_filename, format="mp3")
         
         # Read the file and convert to base64
-        with open(temp_filename, 'rb') as audio_file:
+       with open(temp_filename, 'rb') as audio_file:
             audio_bytes = audio_file.read()
             audio_base64 = base64.b64encode(audio_bytes).decode()
         
