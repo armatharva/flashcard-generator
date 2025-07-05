@@ -1569,11 +1569,11 @@ def main():
     min_value=1, max_value=50, value=5, step=1,
     key="num_cards_text"
 )
-       if num_cards > 30:
+if num_cards > 30:
     st.warning(translate_text("Generating more than 30 flashcards may take longer.", st.session_state.selected_lang_code))
 
-       if text_input:
-       if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
+if text_input:
+if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
        with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
             flashcards = generate_flashcards(text_input, num_cards, st.session_state.selected_lang_code)
                     else:
