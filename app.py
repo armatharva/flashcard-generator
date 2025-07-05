@@ -1214,8 +1214,8 @@ st.session_state.selected_lang_code = safe_lang
 language_changed = True
     
     # Show current language
-    current_lang = next((k for k, v in LANGUAGE_CODES.items() if v == st.session_state.selected_lang_code), "English")
-    st.sidebar.markdown(f"**{translate_text('Current Language:', st.session_state.selected_lang_code)}** {current_lang}")
+current_lang = next((k for k, v in LANGUAGE_CODES.items() if v == st.session_state.selected_lang_code), "English")
+st.sidebar.markdown(f"**{translate_text('Current Language:', st.session_state.selected_lang_code)}** {current_lang}")
     
     # Language change notification
     if language_changed:
