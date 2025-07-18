@@ -1570,26 +1570,40 @@ def main():
             height=200,
             key="text_input"
         )
-        
-        # Number of flashcards selector and warning
-        num_cards = st.number_input(
-            translate_text("How many flashcards do you want?", st.session_state.selected_lang_code),
-            min_value=1, max_value=50, value=5, step=1,
-            key="num_cards_text"
-        )
-        if num_cards > 30:
-            st.warning(translate_text("Generating more than 30 flashcards may take longer.", st.session_state.selected_lang_code))
 
-        if text_input:
-            if st.button(translate_text("Generate Flashcards", st.session_state.selected_lang_code), type="primary"):
-                with st.spinner(translate_text("Generating flashcards...", st.session_state.selected_lang_code)):
-                    flashcards = generate_flashcards(text_input, num_cards, st.session_state.selected_lang_code)
-                    if flashcards:
-                        st.success(translate_text(f"Generated {len(flashcards)} flashcards!", st.session_state.selected_lang_code))
-                        save_flashcards_to_history(flashcards)
-                        render_flip_cards(flashcards, st.session_state.selected_lang_code)
-                    else:
-                        st.error(translate_text("Failed to generate flashcards. Please try again.", st.session_state.selected_lang_code))
+        # Side-by-side buttons for mode selection
+        col1, col2 = st.columns(2)
+        with col1:
+            auto_pressed = st.button(translate_text("Automatic", st.session_state.selected_lang_code), key="auto_mode")
+        with col2:
+            manual_pressed = st.button(translate_text("Manual", st.session_state.selected_lang_code), key="manual_mode")
+
+        if "flashcard_mode" not in st.session_state:
+            st.session_state.flashcard_mode = None
+
+        if auto_pressed:
+            st.session_state.flashcard_mode = "auto"
+        if manual_pressed:
+            st.session_state.flashcard_mode = "manual"
+
+        num_cards = 5  # default
+        if st.session_state.flashcard_mode == "auto":
+            def estimate_num_cards_from_text(text):
+                length = len(text) if text else 0
+                return min(max(length // 300, 3), 10)  # 1 card per 300 chars, min 3, max 10
+
+            num_cards = estimate_num_cards_from_text(text_input)
+            st.success(translate_text(f"Automatic mode: Generating {num_cards} flashcards based on your notes.", st.session_state.selected_lang_code))
+
+        elif st.session_state.flashcard_mode == "manual":
+            num_cards = st.number_input(
+                translate_text("How many flashcards do you want?", st.session_state.selected_lang_code),
+                min_value=1, max_value=50, value=5, step=1,
+                key="num_cards_text"
+            )
+            if num_cards > 30:
+                st.warning(translate_text("Generating more than 30 flashcards may take longer.", st.session_state.selected_lang_code))
+            st.info(translate_text(f"Manual mode: You chose {num_cards} flashcards.", st.session_state.selected_lang_code))
 
     with input_tab2:
         extracted_text = render_image_input()
