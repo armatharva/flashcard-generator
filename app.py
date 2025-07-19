@@ -12,6 +12,7 @@ from translations import translate_text, LANGUAGES
 import tempfile
 import time
 from pydub import AudioSegment
+import pandas as pd
 
 # Map our language codes to gTTS language codes and voice options
 LANG_MAP = {
@@ -1563,20 +1564,60 @@ def main():
         translate_text("💬 Chat", st.session_state.selected_lang_code)
     ])
 
+    # --- Text Input Tab: Full Enhanced Example ---
+
     with input_tab1:
-        # Text input area
+        # 1. Text input for notes
         text_input = st.text_area(
             translate_text("Enter or paste your notes here:", st.session_state.selected_lang_code),
             height=200,
             key="text_input"
         )
 
-        # Side-by-side buttons for mode selection
+        # 2. Show flashcard types preview and info
+        st.info("Flashcards will include definitions, concepts, applications, comparisons, and multiple choice.")
+
+        # 3. Flashcard types selector
+        flashcard_types = st.multiselect(
+            "Select flashcard types to include:",
+            options=["definition", "concept", "application", "comparison", "multiple choice"],
+            default=["definition", "concept", "application", "comparison", "multiple choice"],
+            help="Choose which question types to generate."
+        )
+
+        # 4. Show statistics about input
+        word_count = len(text_input.split())
+        concept_count = len(set([line for line in text_input.split('\n') if line.strip()]))
+        st.write(f"Your notes contain **{word_count} words** and **{concept_count} concepts** (lines detected).")
+
+        # 5. Language-specific suggestions/warnings
+        lang_code = st.session_state.selected_lang_code
+        if lang_code not in ["en", "es", "fr"]:
+            st.warning("Some features like Text-to-Speech may be limited for your selected language.")
+
+        # 6. Support multiple topics at once
+        st.markdown("#### (Optional) Batch Topics")
+        topics = st.text_area("Enter topics, one per line (optional):", key="batch_topics")
+        topic_list = [t for t in topics.split('\n') if t.strip()]
+
+        # 7. Reset mode if text changes
+        if "last_text_input" not in st.session_state:
+            st.session_state.last_text_input = text_input
+        if text_input != st.session_state.last_text_input:
+            st.session_state.flashcard_mode = None
+            st.session_state.last_text_input = text_input
+
+        # 8. Show estimated number before pressing "Automatic"
+        def estimate_num_cards_from_text(text):
+            length = len(text) if text else 0
+            return min(max(length // 300, 3), 10)
+        est_num = estimate_num_cards_from_text(text_input)
+
         col1, col2 = st.columns(2)
         with col1:
-            auto_pressed = st.button(translate_text("Automatic", st.session_state.selected_lang_code), key="auto_mode")
+            auto_pressed = st.button(f"Automatic ({est_num} cards)", key="auto_mode", help="Let AI decide amount based on your notes.")
         with col2:
-            manual_pressed = st.button(translate_text("Manual", st.session_state.selected_lang_code), key="manual_mode")
+            manual_pressed = st.button("Manual", key="manual_mode", help="Choose the number of flashcards yourself.")
 
         if "flashcard_mode" not in st.session_state:
             st.session_state.flashcard_mode = None
@@ -1586,24 +1627,96 @@ def main():
         if manual_pressed:
             st.session_state.flashcard_mode = "manual"
 
-        num_cards = 5  # default
+        # 9. Manual/auto card amount selection
+        num_cards = 5
         if st.session_state.flashcard_mode == "auto":
-            def estimate_num_cards_from_text(text):
-                length = len(text) if text else 0
-                return min(max(length // 300, 3), 10)  # 1 card per 300 chars, min 3, max 10
-
-            num_cards = estimate_num_cards_from_text(text_input)
-            st.success(translate_text(f"Automatic mode: Generating {num_cards} flashcards based on your notes.", st.session_state.selected_lang_code))
-
+            num_cards = est_num
+            st.success(f"Automatic mode: Generating {num_cards} flashcards based on your notes.")
         elif st.session_state.flashcard_mode == "manual":
             num_cards = st.number_input(
-                translate_text("How many flashcards do you want?", st.session_state.selected_lang_code),
+                "How many flashcards do you want?",
                 min_value=1, max_value=50, value=5, step=1,
-                key="num_cards_text"
+                key="num_cards_text",
+                help="Pick a number between 1 and 50."
             )
             if num_cards > 30:
-                st.warning(translate_text("Generating more than 30 flashcards may take longer.", st.session_state.selected_lang_code))
-            st.info(translate_text(f"Manual mode: You chose {num_cards} flashcards.", st.session_state.selected_lang_code))
+                st.warning("Generating more than 30 flashcards may take longer.")
+            st.info(f"Manual mode: You chose {num_cards} flashcards.")
+
+        # 10. Accessibility improvements (help texts, wide buttons)
+        st.markdown("#### Actions")
+        colA, colB, colC = st.columns(3)
+        with colA:
+            preview_btn = st.button("Preview Flashcard", type="secondary", use_container_width=True, help="See a sample before generating all.")
+        with colB:
+            generate_btn = st.button("Generate Flashcards", type="primary", use_container_width=True, help="Create full set of flashcards.")
+        with colC:
+            if st.session_state.get("favorite_cards"):
+                st.button("View Favorites", use_container_width=True, help="See your starred flashcards.")
+
+        # 11. Show preview card before generating all
+        if preview_btn and text_input:
+            with st.spinner("Generating sample flashcard..."):
+                sample_cards = generate_flashcards(text_input, 1, lang_code)
+                if sample_cards:
+                    st.write("Sample flashcard preview:")
+                    st.write(sample_cards[0])
+
+        # 12. Main generation logic, with progress bar/spinner
+        if generate_btn and text_input:
+            with st.spinner("Generating flashcards..."):
+                progress_bar = st.progress(0)
+                # Batch for multiple topics if provided
+                generated_sets = []
+                if topic_list:
+                    for i, topic in enumerate(topic_list):
+                        st.write(f"Generating flashcards for topic: {topic}")
+                        flashcards = generate_flashcards(topic, num_cards, lang_code)
+                        generated_sets.append((topic, flashcards))
+                        progress_bar.progress(int((i+1)/len(topic_list)*100))
+                    progress_bar.empty()
+                    for topic, flashcards in generated_sets:
+                        st.write(f"Cards for topic: {topic}")
+                        render_flip_cards(flashcards, lang_code)
+                else:
+                    flashcards = generate_flashcards(text_input, num_cards, lang_code)
+                    for i in range(100):
+                        time.sleep(0.01)
+                        progress_bar.progress(i+1)
+                    progress_bar.empty()
+                    if flashcards:
+                        st.success(f"Generated {len(flashcards)} flashcards!")
+                        save_flashcards_to_history(flashcards)
+                        render_flip_cards(flashcards, lang_code)
+                    else:
+                        st.error("Failed to generate flashcards. Please try again.")
+
+        # 13. Save favorite flashcards
+        if "favorite_cards" not in st.session_state:
+            st.session_state.favorite_cards = []
+        if 'flashcards' in locals() and flashcards:
+            for i, card in enumerate(flashcards):
+                if st.button(f"⭐ Save Card {i+1}", key=f"fav_{i}"):
+                    st.session_state.favorite_cards.append(card)
+                    st.success(f"Card {i+1} saved to favorites!")
+
+        # 14. Export to CSV/Anki/PDF
+        st.markdown("#### Export Options")
+        if 'flashcards' in locals() and flashcards:
+            colE, colF, colG = st.columns(3)
+            with colE:
+                if st.button("Export to CSV"):
+                    df = pd.DataFrame(flashcards)
+                    st.download_button("Download CSV", df.to_csv(index=False), file_name="flashcards.csv")
+            with colF:
+                if st.button("Export to Anki"):
+                    anki_text = "\n".join([f"{c['question']};{c['answer']}" for c in flashcards])
+                    st.download_button("Download for Anki", anki_text, file_name="flashcards_anki.txt")
+            with colG:
+                pdf_data = create_flashcards_pdf(flashcards, lang_code)
+                st.download_button("Download PDF", pdf_data, file_name="flashcards.pdf")
+
+    # End of enhanced text input tab
 
     with input_tab2:
         extracted_text = render_image_input()
